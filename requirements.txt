@@ -1,0 +1,13 @@
+asyncpg==0.29.0
+Flask[async]==3.0.3
+Flask_Limiter==3.7.0
+flask_wtf==1.2.1
+pydantic==2.7.1
+pydantic_settings==2.2.1
+python-dotenv==1.0.1
+python_dateutil==2.9.0.post0
+pytz==2024.1
+SQLAlchemy==2.0.30
+WTForms==3.1.2
+gunicorn==22.0.0
+pymemcache==4.0.0

@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: AuraKingdom1
+      POSTGRES_DB: replaydb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - my_network
+  api:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    networks:
+      - my_network
+    restart: "always"
+  memcached:
+    container_name: memcached
+    image: memcached:latest
+    networks:
+      - my_network
+    ports:
+      - "11211:11211"
+    restart: "always"
+
+volumes:
+  postgres_data:
+
+networks:
+  my_network:

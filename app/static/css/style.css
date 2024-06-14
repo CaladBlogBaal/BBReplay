@@ -1,0 +1,148 @@
+:root {
+    --main-bg-colour: #FDF4E7;
+    --granite: #464646;
+    --amber: #FFB139;
+    --dusty: #D8658A;
+
+}
+
+body { background-color: var(--main-bg-colour); }
+
+.main-font {
+  color: var(--granite);
+  font-family: Arial, sans-serif;
+}
+
+.button {
+  font: bold 11px Arial;
+  text-decoration: none;
+  background-color: var(--granite);
+  color: var(--main-bg-colour);
+  padding: 6px 25px 6px 25px;
+  border-top: 0.05em solid #CCCCCC;
+  border-right: 0.05em solid #333333;
+  border-bottom: 0.05em solid #333333;
+  border-left: 0.05em solid #CCCCCC;
+  cursor: pointer;
+  border-radius: 0.25em;
+  margin: 30px auto;
+}
+
+.button a:link {
+  color: white;
+  background-color: transparent;
+  text-decoration: none;
+  font-size: 16px;
+}
+.button a:visited {
+  color: white;
+  background-color: transparent;
+  text-decoration: none;
+  font-size: 16px;
+}
+.button a:hover {
+  text-decoration: none;
+  font-size: 16px;
+}
+.button a:active {
+  color: white;
+  background-color: black;
+  text-decoration: none;
+  font-size: 16px;
+}
+
+.btn-padding {
+    margin: 5px auto;
+}
+
+.card-custom {
+    margin: auto;
+}
+
+.card-custom span {
+
+  color: white;
+  font-size: 44px;
+  position: absolute;
+  bottom: 10px; /* Adjust as needed */
+  right: 10px; /* Adjust as needed */
+}
+
+.img-custom {
+    height: 3.5em;
+    width: 14.5em;
+    object-fit: none;
+    object-position: -1em;
+    opacity: 0.9;
+}
+
+.shadow-custom {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.centered-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+.custom-button {
+    background: url('https://icons.iconarchive.com/icons/bootstrap/bootstrap/256/Bootstrap-question-circle-icon.png') no-repeat center center;
+    background-size: cover;
+    border: none;
+    width: 50px;
+    height: 50px;
+}
+.custom-button:focus {
+    outline: none;
+}
+.dropdown-menu {
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: var(--main-bg-colour);
+}
+
+/* Make the image smaller */
+.dropdown-item img {
+    height: 30px; /* Adjust the height as needed */
+    width: 30px; /* Adjust the width as needed */
+    position: absolute;
+    top: 2px;
+    left: 2px;
+}
+
+/* Align the text to the right of the image */
+.dropdown-item a {
+    text-decoration: none;
+    color: inherit;
+    flex-grow: 1;
+    text-align: right;
+}
+
+.dropdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    border: 1px solid #ccc;
+    position: relative;
+    margin-bottom: 1px;
+    list-style: none;
+}
+
+.dropdown-item li:first-child:before {
+    width: 10px;
+    height: 10px;
+    content: "";
+    position: absolute;
+    left: 0;
+}
+
+.dropdown-item li:nth-child(2):before {
+    width: 10px;
+    height: 10px;
+    content: "";
+    position: absolute;
+    left: 0;
+}
