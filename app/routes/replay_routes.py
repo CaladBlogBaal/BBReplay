@@ -19,7 +19,7 @@ limiter.limit("1/second")(bp)
 @limiter.limit("20 per 10 second")
 async def get_paginated_replays():
     page = request.args.get("page", 1, type=int)
-    per_page = 10  # Number of replays per page
+    per_page = 30  # Number of replays per page
     params = dict(request.args)
     params.pop("page", None)
     replay_cache = cache
