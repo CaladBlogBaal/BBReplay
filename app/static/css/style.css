@@ -6,7 +6,9 @@
 
 }
 
-body { background-color: var(--main-bg-colour); }
+body {
+  background-color: var(--main-bg-colour);
+}
 
 .main-font {
   color: var(--granite);
@@ -64,8 +66,8 @@ body { background-color: var(--main-bg-colour); }
   color: white;
   font-size: 44px;
   position: absolute;
-  bottom: 10px; /* Adjust as needed */
-  right: 10px; /* Adjust as needed */
+  bottom: 0.625em; /* Adjust as needed */
+  right: 0.625em; /* Adjust as needed */
 }
 
 .img-custom {
@@ -88,25 +90,25 @@ body { background-color: var(--main-bg-colour); }
     margin-top: 2rem;
 }
 .custom-button {
-    background: url('https://icons.iconarchive.com/icons/bootstrap/bootstrap/256/Bootstrap-question-circle-icon.png') no-repeat center center;
+    background: ''
     background-size: cover;
     border: none;
-    width: 50px;
-    height: 50px;
+    width: 3.125em;
+    height: 3.125em;
 }
 .custom-button:focus {
     outline: none;
 }
 .dropdown-menu {
-    max-height: 200px;
+    max-height: 12.5em;
     overflow-y: auto;
     background-color: var(--main-bg-colour);
 }
 
 /* Make the image smaller */
 .dropdown-item img {
-    height: 30px; /* Adjust the height as needed */
-    width: 30px; /* Adjust the width as needed */
+    height: 1.875em; /* Adjust the height as needed */
+    width: 1.875em; /* Adjust the width as needed */
     position: absolute;
     top: 2px;
     left: 2px;
