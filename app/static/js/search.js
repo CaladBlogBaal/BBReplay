@@ -63,7 +63,7 @@ const replayManager = {
         const self = this; // To preserve the context of 'this'
 
         dateInput.daterangepicker({
-            autoUpdateInput: false,
+            autoUpdateInput: true,
             locale: {
                 cancelLabel: 'Clear',
                 format: 'MMMM D, YYYY'
