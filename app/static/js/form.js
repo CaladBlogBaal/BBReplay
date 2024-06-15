@@ -1,4 +1,3 @@
-// Wait for the DOMContentLoaded event
 document.addEventListener('DOMContentLoaded', function() {
         const fileInput = document.getElementById('files');
         const submitButton = document.getElementById('submitButton');
@@ -27,3 +26,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+//auto close flash messages
+window.setTimeout(function() {
+    $(".alert").fadeTo(500, 0)
+}, 4000);
