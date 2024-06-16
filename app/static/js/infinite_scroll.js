@@ -65,12 +65,10 @@ const replayLoader = {
         }
     },
 
-    renderReplay: function (replay) {
-    // Get the root element (usually <html> or :root in CSS)
-    const root = document.documentElement
+ renderReplay: function (replay) {
     // Get the computed styles of the root element
+    const root = document.documentElement;
     const styles = getComputedStyle(root);
-    // Access the CSS variables
     const amber = 'rgba(50, 68, 168, 0.7)';
     const dusty = 'rgba(163, 27, 27, 0.7)';
     const granite = styles.getPropertyValue('--granite').trim();
@@ -86,11 +84,11 @@ const replayLoader = {
     const container = createElementWithClass('div', 'row no-gutters align-center justify-center');
 
     const createPlayerCard = (player, icon, wins) => {
-        const col = createElementWithClass('div', 'col col-5');
-        const card = createElementWithClass('div', 'card mb-3 card-custom card-body text-center');
+        const col = createElementWithClass('div', 'col-12 col-sm-6 col-md-5 mb-3');
+        const card = createElementWithClass('div', 'card card-custom card-body text-center');
         card.style.width = '18rem';
 
-        const row = createElementWithClass('div', 'row align-items-center');
+        const row = createElementWithClass('div', 'row align-items-center shadow-custom');
         const imgCol = createElementWithClass('div', 'col-12');
         const img = createElementWithClass('img', 'shadow bg-black rounded img-custom');
         img.src = `/static/img/${icon}`;
@@ -123,17 +121,17 @@ const replayLoader = {
     const player1Card = createPlayerCard(replay.p1, replay.p1icon, replay.p1wins);
     container.appendChild(player1Card);
 
-    const footerCol = createElementWithClass('div', 'card-footer text-center col col-2');
+    const footerCol = createElementWithClass('div', 'col-12 col-sm-6 col-md-2 text-center mb-3');
     const footerContainer = createElementWithClass('div', 'container');
 
     const downloadRow1 = createElementWithClass('div', 'row no-gutters');
-    const downloadButton1 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-auto button text-light');
+    const downloadButton1 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
     downloadButton1.href = `/download?replay_id=${replay.replay_id}`;
     downloadButton1.textContent = 'Download Game';
     downloadRow1.appendChild(downloadButton1);
 
     const downloadRow2 = createElementWithClass('div', 'row no-gutters');
-    const downloadButton2 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-auto button text-light');
+    const downloadButton2 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
     downloadButton2.href = `/download_set?replay_ids=${replay.set.join(',')}`;
     downloadButton2.textContent = 'Download Set';
     downloadRow2.appendChild(downloadButton2);
