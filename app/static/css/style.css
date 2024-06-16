@@ -8,6 +8,7 @@
 
 body {
   background-color: var(--main-bg-colour);
+  padding-top: 56px;
 }
 
 .main-font {
@@ -62,12 +63,11 @@ body {
 }
 
 .card-custom span {
-
   color: white;
-  font-size: 44px;
+  font-size: 2.75em;
   position: absolute;
-  bottom: 0.625em; /* Adjust as needed */
-  right: 0.625em; /* Adjust as needed */
+  bottom: 0.075em; /* Adjust as needed */
+  right: 0.125em; /* Adjust as needed */
 }
 
 .img-custom {
@@ -147,4 +147,12 @@ body {
     content: "";
     position: absolute;
     left: 0;
+}
+
+#replays-container {
+    border: 2px solid black;
+    border-radius: 5px;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    background-color: #e3dbcf;
 }
