@@ -19,7 +19,8 @@ limiter.limit("1/second")(bp)
 @limiter.limit("20 per 10 second")
 async def get_paginated_replays():
     page = request.args.get("page", 1, type=int)
-    per_page = 30  # Number of replays per page
+    per_page = 10  # Default number of replays per page
+    divisor = 40
     params = dict(request.args)
     params.pop("page", None)
     replay_cache = cache
@@ -34,6 +35,8 @@ async def get_paginated_replays():
 
         if not isinstance(replays_list, list):
             return jsonify(replays_list), 404
+
+        per_page = divisor if len(replays_list) / divisor > 1 else per_page
 
         replays_list.sort(key=lambda r: datetime.strptime(r["recorded_at"], "%a, %d %b %Y %H:%M:%S %Z"), reverse=True)
         replays_list = list(chunks(replays_list, per_page))
