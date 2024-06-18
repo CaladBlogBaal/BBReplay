@@ -11,6 +11,7 @@ RUN python -m pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
 COPY . .
 
-CMD ["python", "manage.py", "init-db"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app.wsgi:create_app()"]
+ENTRYPOINT ["/entrypoint.sh"]
