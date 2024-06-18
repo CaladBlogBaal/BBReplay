@@ -23,7 +23,7 @@ def create_app():
     template_folder = os.path.join(current_dir, "templates")
 
     app = Flask(__name__,  template_folder=os.path.join(os.getcwd(), template_folder))
-    # limiter.init_app(app)  # Rate limiter
+    limiter.init_app(app)  # Rate limiter
     app.config["DATABASE_URL"] = settings.database_url
     app.config["API_KEY"] = settings.api_key
     app.config["SECRET_KEY"] = settings.secret
