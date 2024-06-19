@@ -10,7 +10,6 @@ BBReplay is a website to host and serve replay data from the game BlazBlue Centr
 - [Dependencies](#dependencies)
 - [Configuration](#configuration)
 - [Documentation](#documentation)
-- [Contributors](#contributors)
 - [License](#license)
 <a name="installation"></a>
 ## Installation
@@ -80,7 +79,7 @@ FROM python:3.9-slim
 RUN apt-get update
 
 ENV DATABASE_URL=postgresql+asyncpg://postgres:AuraKingdom1@db:5432/replaydb
-ENV API_KEY=thunderiscute
+ENV API_KEY=...
 ENV SECRET_KEY=API_KEY
 
 COPY requirements.txt /tmp/requirements.txt
@@ -88,9 +87,10 @@ RUN python -m pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
 COPY . .
 
-CMD ["python", "manage.py", "init-db"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app.wsgi:create_app()"]
+ENTRYPOINT ["/entrypoint.sh"]
 ```
 <a name="usage"></a>
 ## Usage
@@ -98,7 +98,7 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app.wsgi:create_app()"]
 The **\`manage.py`** file uses Flask CLI commands for application management. Here are the commands:
 ### Initialize the Database
 
-To initialize the database, run:
+To initialize the database, run if you're not using docker:
 ```sh
 python manage.py init_db
 ```
@@ -203,18 +203,11 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns a compressed ZIP file containing the requested replays.
 
-Usage:
-
-    Make HTTP requests to the respective endpoints using the appropriate HTTP methods (GET, POST, PUT, DELETE).
-    Ensure that request parameters and body payloads adhere to the specified formats.
-    Handle responses as per HTTP status codes returned by the API.
 
 Note:
 
     Proper authentication and authorization mechanisms are implemented to secure access to UPDATE, DELETE API endpoints.
 
-Troubleshooting
 
-Contributors
-
-License
+## License
+This project is licensed under MPL-2.0 license.
