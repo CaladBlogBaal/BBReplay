@@ -1,7 +1,7 @@
 # BBReplay
 ## Introduction
 
-BBReplay is a website to host and serve replay data from the game BlazBlue Central Fiction. Replays can be uploaded to the site to be later served and displayed. They can be filtered on the site through searches, by recorded_at date, player names, or characters used. The replays can be automatically uploaded through the BBCF Improvement Mod. This site was created as a personal project but can be used by others. Unlike the barebones BBCFIM site, BBReplay includes CSS for a better user experience. The site also exposes a public API for managing replays.
+BBReplay is a website to host and serve replay data from the game BlazBlue Central Fiction. Replays can be uploaded to the site to be later served and displayed. They can be filtered on the site through searches, by recorded_at date, player names, or characters used. The replays can be automatically uploaded through the BBCF Improvement Mod. This site was created as a personal project but can be used by others. The site also exposes a public API for managing replays.
 ## Table of Contents
 
 - [Installation](#installation)
@@ -36,9 +36,9 @@ services:
     image: postgres:latest
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: AuraKingdom1
-      POSTGRES_DB: replaydb
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -132,18 +132,45 @@ pymemcache==4.0.0
 ```
 ## Configuration
 
-Configuration details can be managed through environment variables as defined in the `Dockerfile`:
+Configuration details can be managed through environment variables as defined in a **\`.env`**:
 
 - **\`DATABASE_URL`**: The URL for the PostgreSQL database
 - **\`API_KEY`**: An API key for application use
 - **\`SECRET_KEY`**: A secret key for security purposes
+
+Details of the postgresql database can be adjusted through environment variables as defined in the **\`compose.yaml`**:
+- **\`POSTGRES_USER`**: The name of the database user.
+- **\`POSTGRES_PASSWORD`**: The password for the database.
+- **\`POSTGRES_DB`**: The name of the database.
+
+An example **\`.env`** could look like
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:POSTGRES_PASSWORD@db:5432/POSTGRES_DB
+API_KEY=API_KEY
+SECRET_KEY=SECRET_KEY
+POSTGRES_USER=POSTGRES_USER
+POSTGRES_PASSWORD=POSTGRES_PASSWORD
+POSTGRES_DB=POSTGRES_DB
+```
+
+If you're not using Docker then you'd need to adjust the host variable in the **\`app/core.py`** to point to your device's localhost
+```python
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+port = "11211"
+host = "memcached"
+memcached_uri = f"memcached://{host}:{port}"
+limiter = Limiter(storage_uri=memcached_uri,
+                  key_func=get_remote_address)
+```
 
 <a name="documentation"></a>
 ## Documentation
 
 ### API Endpoints
 
-The routes are defined in routes/replay_routes.py
+The routes are defined in **\`routes/replay_routes.py`**
 #### 1. GET /replays
 
 - Description: Retrieve a list of all replays or filter replays based on query parameters.

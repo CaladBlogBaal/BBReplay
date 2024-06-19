@@ -3,9 +3,9 @@ services:
     image: postgres:latest
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: AuraKingdom1
-      POSTGRES_DB: replaydb
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -21,6 +21,8 @@ services:
     networks:
       - my_network
     restart: "always"
+    env_file:
+      - .env
   memcached:
     container_name: memcached
     image: memcached:latest
