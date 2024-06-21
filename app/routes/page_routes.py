@@ -1,4 +1,4 @@
-from flask import Blueprint, flash, render_template, request
+from flask import Blueprint, flash, render_template, request, jsonify
 
 from app.controllers import file_controller
 
@@ -18,6 +18,15 @@ async def index():
 
 @bp.route("/upload", methods=["GET", "POST"])
 async def upload():
+    if request.method == "POST":
+        data = request.data
+        response, status_code = await file_controller.upload_file("1.dat", data)
+        clear_cache_on_success(response, status_code)
+        if status_code == 404:
+            return jsonify({"message": "could not create replay, already exists"}), status_code
+
+        return jsonify(response), status_code
+
     form = UploadForm()
     if form.validate_on_submit():
         for file in form.files.data:
