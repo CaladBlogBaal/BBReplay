@@ -8,6 +8,7 @@ from app.controllers.replay_controller import ReplayController
 from app.db_manager import DBManager
 from app.core import limiter
 from app.services.replay_service import ReplayService
+from app.utils.helpers import IntListConverter
 
 # Set the event loop explicitly so the DBManager and Flask use the same loop
 asyncio.set_event_loop(asyncio.new_event_loop())
@@ -23,6 +24,7 @@ def create_app():
     template_folder = os.path.join(current_dir, "templates")
 
     app = Flask(__name__,  template_folder=os.path.join(os.getcwd(), template_folder))
+    app.url_map.converters["int_list"] = IntListConverter
     limiter.init_app(app)  # Rate limiter
     app.config["DATABASE_URL"] = settings.database_url
     app.config["API_KEY"] = settings.api_key
