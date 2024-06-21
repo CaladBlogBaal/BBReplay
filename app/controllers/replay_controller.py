@@ -70,7 +70,7 @@ class ReplayController:
 
         try:
             await self.service.delete_replay(replay_id)
-            return "", 204
+            return jsonify({"message": f"Successfully deleted replay with ID: {replay_id}"}), 204
         except NoResultFound:
             return jsonify({"message": "Replay not found"}), 404
 
