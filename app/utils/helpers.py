@@ -1,3 +1,4 @@
+import asyncio
 import os
 import glob
 import struct
@@ -10,6 +11,8 @@ from datetime import datetime, timedelta
 
 from functools import wraps
 from typing import Union, Any
+
+from werkzeug.routing import BaseConverter
 
 import flask
 
@@ -161,11 +164,17 @@ def assign_wins(replay: dict):
 
 
 def require_api_key(func):
-    @wraps(func)
-    def decorated_function(*args, **kwargs):
-        api_key = request.headers.get("x-api-key")
-        if api_key and api_key == current_app.config["API_KEY"]:
+    async def helper(func, *args, **kwargs):
+        if asyncio.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        else:
             return func(*args, **kwargs)
+
+    @wraps(func)
+    async def decorated_function(*args, **kwargs):
+        api_key = request.headers.get("x-api-key") or request.headers.get("api-key")
+        if api_key and api_key == current_app.config["API_KEY"]:
+            return await helper(func, *args, **kwargs)
         else:
             abort(403)  # Forbidden
 
@@ -271,3 +280,13 @@ def clear_cache_on_success(response, code):
     if code in (204, 201, 200):
         cache.clear()
     return response
+
+
+class IntListConverter(BaseConverter):
+    regex = r"\d+(?:,\d+)*,?"
+
+    def to_python(self, value):
+        return [int(x) for x in value.split(',')]
+
+    def to_url(self, value):
+        return ','.join(str(x) for x in value)
