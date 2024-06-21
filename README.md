@@ -171,16 +171,16 @@ limiter = Limiter(storage_uri=memcached_uri,
 ### API Endpoints
 
 The routes are defined in **\`routes/replay_routes.py`**
-#### 1. GET /replays
+#### 1. GET /api/replays
 
-- Description: Retrieve a list of all replays or filter replays based on query parameters.
+- Description: Retrieve a list of replays divided by page or filter replays based on query parameters.
 - Parameters:
 
   - query_params (optional): Parameters for filtering replays.
   Response:
    Returns a JSON array containing replay data.
   
-#### 2. POST /replays
+#### 2. POST /api
 
 - Description: Create a new replay.
 - Request Body:
@@ -188,7 +188,7 @@ The routes are defined in **\`routes/replay_routes.py`**
 - Response:
   - Returns JSON data of the created replay.
 
-#### 3. GET /replays/{replay_id}
+#### 3. GET /api/\<int:replay_id>
 
 - Description: Retrieve a specific replay by its ID.
 - Parameters:
@@ -196,7 +196,7 @@ The routes are defined in **\`routes/replay_routes.py`**
 - Response:
    - Returns JSON data of the specified replay.
 
-#### 4. PUT /replays/{replay_id}
+#### 4. PUT /api/\<int:replay_id>
 
 - Description: Update an existing replay.
 - Parameters:
@@ -206,7 +206,7 @@ The routes are defined in **\`routes/replay_routes.py`**
 - Response:
    - Returns JSON data of the updated replay.
 
-#### 5. DELETE /replays/{replay_id}
+#### 5. DELETE /api/\<int:replay_id>
 
 - Description: Delete a specific replay by its ID.
 - Parameters:
@@ -214,7 +214,7 @@ The routes are defined in **\`routes/replay_routes.py`**
 - Response:
    - Returns a success message upon successful deletion.
 
-#### 6. GET /replays/{replay_id}/download
+#### 6. GET /api/download/\<int:replay_id>
 
 - Description: Download a specific replay file by its ID.
 - Parameters:
@@ -222,7 +222,7 @@ The routes are defined in **\`routes/replay_routes.py`**
 - Response:
    - Returns the replay file as a downloadable attachment.
 
-#### 7. POST /replays/download
+#### 7. POST /api/download_set/<int_list:replay_ids>
 
 - Description: Download multiple replays as a compressed ZIP file.
 - Request Body:
