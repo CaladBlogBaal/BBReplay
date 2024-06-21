@@ -157,7 +157,7 @@ class ReplayService:
 
             await session.commit()
             await session.refresh(replay)
-            logger.info(f"Updated replay with ID: {replay.id}")
+            logger.info(f"Updated replay with ID: {replay.replay_id}")
             return replay
 
     async def delete_replay(self, replay_id: int) -> None:
@@ -165,7 +165,7 @@ class ReplayService:
             replay = await self.get_replay(replay_id)
             await session.delete(replay)
             await session.commit()
-            logger.info(f"Deleted user with ID: {replay.id}")
+            logger.info(f"Deleted user with ID: {replay.replay_id}")
 
     async def load_replay(self, replay_id: int) -> tuple[BytesIO, str, str]:
         replay = await self.get_replay(replay_id)
