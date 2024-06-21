@@ -126,13 +126,13 @@ const replayLoader = {
 
     const downloadRow1 = createElementWithClass('div', 'row no-gutters');
     const downloadButton1 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
-    downloadButton1.href = `/download?replay_id=${replay.replay_id}`;
+    downloadButton1.href = `/download/${replay.replay_id}`;
     downloadButton1.textContent = 'Download Game';
     downloadRow1.appendChild(downloadButton1);
 
     const downloadRow2 = createElementWithClass('div', 'row no-gutters');
     const downloadButton2 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
-    downloadButton2.href = `/download_set?replay_ids=${replay.set.join(',')}`;
+    downloadButton2.href = `/download_set/${replay.set.join(',')}`;
     downloadButton2.textContent = 'Download Set';
     downloadRow2.appendChild(downloadButton2);
 

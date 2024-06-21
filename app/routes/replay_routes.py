@@ -1,3 +1,4 @@
+import typing
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify, Flask
@@ -75,7 +76,6 @@ def get_character_icons():
 @limiter.limit("20 per 10 second")
 async def get_replays_api():
     query_params = request.args.to_dict()
-
     for key in query_params:
         try:
             query_params[key] = int(query_params[key])
@@ -85,36 +85,40 @@ async def get_replays_api():
     return await controller.get_replays(query_params)
 
 
+@bp.route("/api/<int:replay_id>", methods=["GET"])
+@limiter.limit("20 per 10 second")
+async def get_replay_api(replay_id: int):
+    params = {"replay_id": str(replay_id)}
+    return await controller.get_replay(params)
+
+
 @bp.route("/api", methods=["POST"])
 @limiter.limit("10 per 10 second")
 async def create_replay_api():
     return clear_cache_on_success(*(await controller.create_replay(request.data)))
 
 
-@bp.route("/api", methods=["PUT"])
+@bp.route("/api/<int:replay_id>", methods=["PUT"])
 @limiter.limit("5 per 10 second")
 @require_api_key
 async def update_replay_api(replay_id: int):
-    return clear_cache_on_success(*(controller.update_replay(replay_id)))
+    return clear_cache_on_success(*(await controller.update_replay(replay_id)))
 
 
-@bp.route("/api", methods=["DELETE"])
+@bp.route("/api/<int:replay_id>", methods=["DELETE"])
 @limiter.limit("3 per 10 second")
 @require_api_key
 async def delete_replay_api(replay_id: int):
-    return clear_cache_on_success(*(controller.delete_replay(replay_id)))
+    return clear_cache_on_success(*(await controller.delete_replay(replay_id)))
 
 
-@bp.route("/download", methods=["GET"])
+@bp.route("/download/<int:replay_id>", methods=["GET"])
 @limiter.limit("20 per 10 second")
-async def download_replay():
-    replay_id = int(request.args.get("replay_id", None))
+async def download_replay(replay_id: int):
     return await controller.download_replay(replay_id)
 
 
-@bp.route("/download_set", methods=["GET"])
+@bp.route("/download_set/<int_list:replay_ids>", methods=["GET"])
 @limiter.limit("20 per 10 second")
-async def download_set():
-    data = request.args.to_dict(flat=False)
-    replay_ids = [int(n) for n in data["replay_ids"][0].split(",")]
+async def download_set(replay_ids: typing.List[int]):
     return await controller.download_replays(replay_ids)
