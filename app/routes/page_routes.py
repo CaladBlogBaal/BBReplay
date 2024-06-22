@@ -25,7 +25,7 @@ async def upload():
         if status_code == 404:
             return jsonify({"message": "could not create replay, already exists"}), status_code
 
-        return jsonify(response), status_code
+        return response, status_code
 
     form = UploadForm()
     if form.validate_on_submit():
