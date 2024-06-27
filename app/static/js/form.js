@@ -7,8 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
 
         // Check if the current window location is not already at the target route
-        if (window.location.pathname !== '/upload') {
-            window.location.href = '/upload';
+        if (window.location.pathname !== '/upload-files') {
+            window.location.href = '/upload-files';
         }
 
         // Display the file upload form

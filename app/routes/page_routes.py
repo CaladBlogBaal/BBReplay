@@ -16,17 +16,19 @@ async def index():
     return render_template("index.html")
 
 
-@bp.route("/upload", methods=["GET", "POST"])
+@bp.route("/upload", methods=["POST"])
 async def upload():
-    if request.method == "POST":
-        data = request.data
-        response, status_code = await file_controller.upload_file("1.dat", data)
-        clear_cache_on_success(response, status_code)
-        if status_code == 404:
-            return jsonify({"message": "could not create replay, already exists"}), status_code
+    data = request.data
+    response, status_code = await file_controller.upload_file("1.dat", data)
+    clear_cache_on_success(response, status_code)
+    if status_code == 404:
+        return jsonify({"message": "could not create replay, already exists"}), status_code
 
-        return response, status_code
+    return response, status_code
 
+
+@bp.route("/upload-files", methods=["GET", "POST"])
+async def upload_form():
     form = UploadForm()
     if form.validate_on_submit():
         for file in form.files.data:
