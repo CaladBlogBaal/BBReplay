@@ -144,16 +144,28 @@ Configuration details can be managed through environment variables as defined in
 ### API Endpoints
 
 The routes are defined in routes/replay_routes.py
-#### 1. GET /replays
+#### 1. GET /api/replays
 
 - Description: Retrieve a list of all replays or filter replays based on query parameters.
 - Parameters:
+  - query_params (optional):
 
-  - query_params (optional): Parameters for filtering replays.
-  Response:
+| query_params | Type      | Description                                                           |
+|----------------------|-----------|-----------------------------------------------------------------------|
+| `replay_id`          | Integer   | Unique identifier for each replay.                                    |
+| `p1`                 | String    | Player 1's name.                                                      |
+| `p1_character_id`    | Integer   | Character ID for Player 1, must be within the specified range. (0-35) |
+| `p2`                 | String    | Player 2's name.                                                      |
+| `p2_character_id`    | Integer   | Character ID for Player 2, must be within the specified range. (0-35) |
+| `recorder`           | String    | Name of the person who recorded the replay.                           |
+| `p1_steamid64`       | Integer   | Steam ID for Player 1.                                                |
+| `p2_steamid64`       | Integer   | Steam ID for Player 2.                                                |
+| `recorder_steamid64` | Integer   | Steam ID for the recorder.                                            |
+
+  - Response:
    Returns a JSON array containing replay data.
   
-#### 2. POST /replays
+#### 2. POST /api/replay
 
 - Description: Create a new replay.
 - Request Body:
@@ -161,7 +173,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
   - Returns JSON data of the created replay.
 
-#### 3. GET /replays/{replay_id}
+#### 3. GET /api/replay/<int:replay_id>
 
 - Description: Retrieve a specific replay by its ID.
 - Parameters:
@@ -169,7 +181,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns JSON data of the specified replay.
 
-#### 4. PUT /replays/{replay_id}
+#### 4. PUT /api/replay/<int:replay_id>
 
 - Description: Update an existing replay.
 - Parameters:
@@ -179,7 +191,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns JSON data of the updated replay.
 
-#### 5. DELETE /replays/{replay_id}
+#### 5. DELETE /api/replay/<int:replay_id>
 
 - Description: Delete a specific replay by its ID.
 - Parameters:
@@ -187,7 +199,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns a success message upon successful deletion.
 
-#### 6. GET /replays/{replay_id}/download
+#### 6. GET /download
 
 - Description: Download a specific replay file by its ID.
 - Parameters:
@@ -195,7 +207,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns the replay file as a downloadable attachment.
 
-#### 7. POST /replays/download
+#### 7. POST /download-set
 
 - Description: Download multiple replays as a compressed ZIP file.
 - Request Body:
