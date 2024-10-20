@@ -1,15 +1,14 @@
-import os
 import contextlib
 import typing
 from io import BytesIO
 
 from zipfile import ZipFile
-from typing import Union, Dict
+from typing import Union, Dict, Optional, Any
 
 import sqlalchemy
 from sqlalchemy.exc import NoResultFound
 
-from flask import request, jsonify, Response, send_file
+from flask import request
 
 from app.schema import ReplayCreate, ReplayUpdate, ReplayQuery
 from app.models.replay import Replay
@@ -23,66 +22,70 @@ class ReplayController:
     def __init__(self, service: ReplayService):
         self.service = service
 
-    async def get_replay(self, query_params: Dict[str, Union[int, str, bytes]]) -> Union[
-                            Response, tuple[Response, int]]:
+    async def get_replay(self, query_params: Dict[str, Union[int, str, bytes]], per_page=None, page=1) -> \
+            typing.AsyncGenerator[Replay, None]:
         validated_data = validate_model_data(query_params, ReplayQuery)
         if type(validated_data) in (Replay, ReplayQuery):
 
             try:
                 cast_attributes_to_types(query_params)
-                replays = await self.service.get_replays(query_params)
-                return jsonify([replay.to_dict() for replay in replays]), 201
+                async for replay in self.service.get_replays(query_params, per_page=per_page, page=page):
+                    yield replay
+
             except NoResultFound:
-                return jsonify({"message": "Replay(s) not found"}), 404
+                return
         else:
             # Data is invalid, return error response
-            return jsonify(validated_data), 400
+            yield {"message": "data is invalid"}.update(validated_data)
 
-    async def get_replays(self, query_params: Dict[str, Union[int, str, bytes]] = None) -> Union[
-                            Response, tuple[Response, int]]:
+    async def get_replays(self, query_params: Dict[str, Union[int, str, bytes]] = None, per_page=None, page=1) \
+            -> typing.AsyncGenerator[Replay, None]:
         if query_params:
-            return await self.get_replay(query_params)
+            async for replay in self.get_replay(query_params, per_page=per_page, page=page):
+                yield replay
+        else:
+            async for replay in self.service.get_all_replays(per_page=per_page, page=page):
+                yield replay
 
-        replays = await self.service.get_all_replays()
-        return jsonify([replay.to_dict() for replay in replays]), 201
+    async def get_total_pages(self, query_params: dict = None, per_page=10) -> int:
+        return await self.service.get_total_pages(query_params, per_page=per_page)
 
-    async def create_replay(self, data: bytes) -> Union[Response, tuple[Response, int]]:
+    async def create_replay(self, data: bytes) -> Optional[Union[dict[str, str], Replay]]:
         data = read_data(data)
         replay_create = ReplayCreate(**data)
 
         try:
             replay = await self.service.create_replay(replay_create)
         except sqlalchemy.exc.IntegrityError:
-            return jsonify({"message": "Replay already exists"}), 404
-        return jsonify(replay.to_dict()), 201
+            return
+        return replay
 
-    async def update_replay(self, replay_id: int) -> Union[Response, tuple[Response, int]]:
+    async def update_replay(self, replay_id: int) -> Optional[Union[dict[str, str], Replay]]:
         data = request.get_json()
         replay_update = ReplayUpdate(**data)
 
         try:
-            user = await self.service.update_replay(replay_id, replay_update)
-            return jsonify(user.to_dict()), 204
+            replay = await self.service.update_replay(replay_id, replay_update)
+            return replay
         except NoResultFound:
-            return jsonify({"message": "Replay not found"}), 404
+            return
 
-    async def delete_replay(self, replay_id: int) -> Union[tuple[str, int], tuple[Response, int]]:
+    async def delete_replay(self, replay_id: int) -> bool:
 
         try:
             await self.service.delete_replay(replay_id)
-            return "", 204
+            return True
         except NoResultFound:
-            return jsonify({"message": "Replay not found"}), 404
+            return False
 
-    async def download_replay(self, replay_id: int) -> Union[tuple[Response, int], None]:
+    async def download_replay(self, replay_id: int) -> Optional[tuple[BytesIO, str, str]]:
         try:
             data, filename, mimetype = await self.service.load_replay(replay_id)
+            return data, filename, mimetype
         except NoResultFound:
-            return jsonify({"message": "Replay not found"}), 404
+            return
 
-        return send_file(data, as_attachment=True, download_name=filename, mimetype=mimetype), 200
-
-    async def download_replays(self, replay_ids: typing.Collection[int]) -> Union[tuple[Response, int], None]:
+    async def download_replays(self, replay_ids: typing.Collection[int]) -> Optional[tuple[BytesIO, Any]]:
         replays = []
 
         with contextlib.suppress(NoResultFound):
@@ -90,18 +93,26 @@ class ReplayController:
                 replays.append(replay)
 
             if not replays:
-                return jsonify(
-                    {"message": f"Replay(s) with ID(s): {','.join(str(n) for n in replay_ids)} not found"}), 404
+                return
 
+            _, base_filename, _ = replays[0]
             stream = BytesIO()
 
             with ZipFile(stream, "w") as zf:
                 for i, replay in enumerate(replays):
                     data, filename, mimetype = replay
-                    zf.writestr(filename + f"_{i}", data.getvalue())
 
-            _, filename, _ = replays[0]
+                    filename = filename.split("(")
+                    middle = filename[1].split("_")
+
+                    extension = f"({i}).dat" if i > 0 else ".dat"
+                    p1_initials = filename[0][0] + filename[0][-1]
+                    p1_toon_initials = middle[0][0] + middle[0][-2]
+                    p2_initials = middle[1][0] + middle[1][-1]
+                    p2_toon_initials = filename[2][0] + filename[2][-6]
+                    filename = f"{p1_initials}_{p1_toon_initials}_{p2_initials}_{p2_toon_initials}{extension}".lower()
+
+                    zf.writestr(filename, data.getvalue())
 
             stream.seek(0)
-            return send_file(stream, as_attachment=True,
-                             download_name=f"replays-{os.path.splitext(filename)[0]}.zip"), 200
+            return stream, base_filename  # Return the stream and the base filename

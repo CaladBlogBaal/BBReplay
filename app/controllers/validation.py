@@ -74,7 +74,10 @@ def validate_model_data(data: Dict[str, Union[str, int, bytes]],
         pattern = r'"(.*?)"'
         # validate
         for key, value in data.items():
-            # check if it's tuple or list
+            # check if it's tuple or list string
+            if not isinstance(value, str):
+                continue
+
             if value.startswith("[") or value.startswith("(") and value.endswith("]") or value.endswith(")"):
                 data[key] = re.findall(pattern, value)
 

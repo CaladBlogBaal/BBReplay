@@ -23,9 +23,9 @@ async def upload():
         for file in form.files.data:
             file = file
             data = file.read()
-            response, status_code = await file_controller.upload_file("1.dat", data)
-            clear_cache_on_success(response, status_code)
-            if status_code != 404:
+            replay = await file_controller.upload_file("1.dat", data)
+            if replay:
+                clear_cache_on_success(replay, 201)
                 flash("Replay successfully uploaded!", "success")
             else:
                 flash("Replay already exists", "failure")

@@ -27,7 +27,7 @@ const replayLoader = {
 
         try {
 
-            const response = await fetch(`api/replays?${params.toString()}`);
+            const response = await fetch(`api/replay-sets?${params.toString()}`);
             if (!response.ok) {
                 console.error('Error: Response not OK', response.statusText);
                 return;
@@ -132,7 +132,7 @@ const replayLoader = {
 
     const downloadRow2 = createElementWithClass('div', 'row no-gutters');
     const downloadButton2 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
-    downloadButton2.href = `/download_set?replay_ids=${replay.set.join(',')}`;
+    downloadButton2.href = `/download-set?replay_ids=${replay.set.join(',')}`;
     downloadButton2.textContent = 'Download Set';
     downloadRow2.appendChild(downloadButton2);
 
