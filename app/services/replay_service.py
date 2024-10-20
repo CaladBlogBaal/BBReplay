@@ -3,7 +3,6 @@ import typing
 
 from io import BytesIO
 from datetime import datetime, timezone
-from typing import Sequence, Type
 
 from sqlalchemy import func, extract, or_, and_
 from sqlalchemy.future import select
@@ -103,25 +102,70 @@ class ReplayService:
             query = query.where(condition)
         return query
 
-    async def get_replays(self, query_params: typing.Dict[str, typing.Union[int, str, bytes]]) -> Sequence[Replay]:
+    async def get_total_replays_query_count(self, query_params: dict = None) -> int:
+        async with self.acquire() as session:
+            if query_params:
+                query = self.build_query(Replay, query_params)
+                count_query = query.with_only_columns(func.count())  # Count query
+                result = await session.execute(count_query)
+                total_replays = result.scalar()
+            else:
+                result = await session.execute(select(func.count(Replay.replay_id)))
+                total_replays = result.scalar()  # Get the total count of replays
+
+            return total_replays
+
+    async def get_total_pages(self, query_params: dict = None, per_page=10) -> int:
+        """Calculate the total number of pages."""
+        total_replays = await self.get_total_replays_query_count(query_params)
+        total_pages = (total_replays + per_page - 1) // per_page  # Round up to next page if there are leftovers
+        return total_pages
+
+    @staticmethod
+    async def _stream_replays(query, session) -> typing.AsyncGenerator[Replay, None]:
+        # Peek at the first result to check if there are any results
+        first_replay = await (await session.stream_scalars(query)).first()
+        if not first_replay:
+            raise NoResultFound("Replay(s) not found")
+
+        async for replay in await session.stream_scalars(query):
+            yield replay
+
+    async def get_replays(self, query_params: typing.Dict[str, typing.Union[int, str, bytes]],
+                          per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
         async with self.acquire() as session:
 
             query = self.build_query(Replay, query_params)
-            result = await session.execute(query)
-            replays = result.scalars().all()
 
-            if not replays:
-                raise NoResultFound("Replay(s) not found")
+            if per_page:  # Add pagination to the query
+                offset = (page - 1) * per_page
+                query = query.limit(per_page).offset(offset)
 
-            logger.info(f"Returned replay(s) with ID(s): {','.join(str(r.replay_id) for r in replays)}")
-            return replays
+            replay_ids = []
 
-    async def get_all_replays(self) -> Sequence[Replay]:
+            async for replay in self._stream_replays(query, session):
+                yield replay
+                replay_ids.append(str(replay.replay_id))
+
+            if replay_ids:
+                logger.info(f"Returned replay(s) with ID(s): {','.join(replay_ids)}")
+
+    async def get_all_replays(self, per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
         async with self.acquire() as session:
-            result = await session.execute(select(Replay))
-            replays = result.scalars().all()
-            logger.info(f"Returned all replays")
-            return replays
+
+            query = select(Replay)
+
+            if per_page:  # Apply pagination
+                offset = (page - 1) * per_page
+                query = select(Replay).limit(per_page).offset(offset)
+
+            async for replay in self._stream_replays(query, session):
+                yield replay
+
+            if per_page:
+                logger.info(f"Returned all replays for page {page}")
+            else:
+                logger.info(f"Returned all replays")
 
     async def create_replay(self, replay_create: ReplayCreate) -> Replay:
         new_replay = Replay(
@@ -149,8 +193,7 @@ class ReplayService:
 
     async def update_replay(self, replay_id: int, replay_update: ReplayUpdate) -> Replay:
         async with self.acquire() as session:
-            replay = await self.get_replays({"replay_id": replay_id})
-            replay = replay[0]
+            replay = await anext(self.get_replays({"replay_id": replay_id}))
 
             for key, value in replay_update.dict(exclude_unset=True).items():
                 setattr(replay, key, value)
