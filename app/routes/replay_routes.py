@@ -50,7 +50,6 @@ async def get_replays_into_sets():
         if not isinstance(replays_list, list):
             return jsonify(replays_list), 404
 
-        replays_list.sort(key=lambda r: r["recorded_at"], reverse=True)
         replay_cache.set(params, replays_list)
         replays = replay_cache.get(params)
 
@@ -62,6 +61,7 @@ async def get_replays_into_sets():
         return check
 
     replays = collapse_replays_into_sets(replays)
+    replays.sort(key=lambda r: r["recorded_at"], reverse=True)
 
     return jsonify(replays=replays, current_page=page, max_page=max_page)
 
