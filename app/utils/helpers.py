@@ -149,15 +149,18 @@ def assign_icons(replay: dict):
 
 def assign_wins(replay: dict):
     recorder = replay["recorder_steamid64"]
-    # Determine if recorder is player 1 or player 2
     is_player1 = (recorder == replay["p1_steamid64"])
-    # Set the win values based on who is the winner
-    if replay["winner"]:
-        replay["p1wins"] = 1 if is_player1 else 0
-        replay["p2wins"] = 0 if is_player1 else 1
+    # Set the win values based on winner, winner just means the person who recorded the replay won.
+    if is_player1:
+        # for some odd reason 0 becomes True, 1 becomes false, if the recorder is on p1 side, instead of p2 side
+        replay["p1wins"] = int(1 - (replay["winner"] is False))  # If they won the replay as they're on p1 side this
+        # evaluates to 0 else 1
+        replay["p2wins"] = 1 - replay["p1wins"]  # This is evaluated to the opposite of p1wins
+
     else:
-        replay["p1wins"] = 0 if is_player1 else 1
-        replay["p2wins"] = 1 if is_player1 else 0
+        replay["p1wins"] = int(1 - replay["winner"])  # If they won the replay as they're on p2 side this evaluates
+        # to 0 else 1
+        replay["p2wins"] = 1 - replay["p1wins"]
 
 
 def require_api_key(func):
