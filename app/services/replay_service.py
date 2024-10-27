@@ -4,7 +4,7 @@ import typing
 from io import BytesIO
 from datetime import datetime, timezone
 
-from sqlalchemy import func, extract, or_, and_
+from sqlalchemy import func, extract, or_, and_, desc
 from sqlalchemy.future import select
 from sqlalchemy.exc import NoResultFound
 
@@ -124,6 +124,7 @@ class ReplayService:
     @staticmethod
     async def _stream_replays(query, session) -> typing.AsyncGenerator[Replay, None]:
         # Peek at the first result to check if there are any results
+        query = query.order_by(desc(Replay.recorded_at))
         first_replay = await (await session.stream_scalars(query)).first()
         if not first_replay:
             raise NoResultFound("Replay(s) not found")
