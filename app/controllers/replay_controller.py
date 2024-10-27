@@ -85,7 +85,7 @@ class ReplayController:
         except NoResultFound:
             return
 
-    async def download_replays(self, replay_ids: typing.Collection[int]) -> Optional[tuple[BytesIO, Any]]:
+    async def download_replays(self, replay_ids: typing.Collection[int]) -> Optional[tuple[BytesIO, str, str]]:
         replays = []
 
         with contextlib.suppress(NoResultFound):
@@ -97,6 +97,7 @@ class ReplayController:
 
             _, base_filename, _ = replays[0]
             stream = BytesIO()
+            archive_mimetype = "application/octet-stream"
 
             with ZipFile(stream, "w") as zf:
                 for i, replay in enumerate(replays):
@@ -115,4 +116,4 @@ class ReplayController:
                     zf.writestr(filename, data.getvalue())
 
             stream.seek(0)
-            return stream, base_filename  # Return the stream and the base filename
+            return stream, base_filename, archive_mimetype

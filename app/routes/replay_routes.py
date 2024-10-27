@@ -1,12 +1,17 @@
 import os
+import typing
+from typing import Tuple
 
-from flask import Blueprint, request, jsonify, Flask, send_file
+from flask import Blueprint, request, jsonify, Flask, send_file, Response
+from pydantic import BaseModel
+
 from app.utils.cache import cache
 from app.utils.constants import CHARACTERS
 from app.utils.helpers import require_api_key, get_character_icon, clear_cache_on_success
 from app.utils.helpers import collapse_replays_into_sets
 from app.core import limiter
 from app import replay_controller as controller
+from app.schema import ReplayQuery
 
 app = Flask("app")
 bp = Blueprint("replays", __name__, url_prefix="/")
@@ -15,7 +20,7 @@ bp = Blueprint("replays", __name__, url_prefix="/")
 limiter.limit("1/second")(bp)
 
 
-def page_out_of_bounds(page: int, max_page: int):
+def page_out_of_bounds(page: int, max_page: int) -> tuple[Response, int]:
     if page > max_page:
         return jsonify({
             "error": "Page out of bounds",
@@ -31,15 +36,25 @@ def page_out_of_bounds(page: int, max_page: int):
         }), 404
 
 
+def validate_replay_query(params: dict, model: typing.Type[BaseModel]) -> None:
+    valid_keys = model.__dict__.keys()
+    param_copy = params.copy()
+    for key in param_copy:
+        if key not in valid_keys:
+            del params[key]
+
+
 @bp.route("/api/replay-sets", methods=["GET"])
 @limiter.limit("20 per 10 second")
 async def get_replays_into_sets():
     page = request.args.get("page", 1, type=int)
     per_page = 100  # Default number of replays per page
     params = dict(request.args)
+    params["page"] = str(page)
     replay_cache = cache
     cached_data = replay_cache.get(params)
     params.pop("page", None)
+    validate_replay_query(params, ReplayQuery)
 
     if cached_data:
         replays = cached_data
@@ -83,7 +98,7 @@ def get_character_icons():
 @limiter.limit("20 per 10 second")
 async def get_replays_api():
     query_params = request.args.to_dict()
-
+    validate_replay_query(query_params, ReplayQuery)
     for key in query_params:
         try:
             query_params[key] = int(query_params[key])
@@ -93,6 +108,7 @@ async def get_replays_api():
     limit = 10000
     per_page = query_params.pop("per_page", 100)
     page = query_params.pop("page", 1)
+    include = query_params.pop("include", False)
     # Enforce limits
     per_page = max(1, min(per_page, limit))
     max_page = await controller.get_total_pages(query_params, per_page=per_page)
@@ -102,7 +118,7 @@ async def get_replays_api():
     if check:
         return check
 
-    replays = [replay.to_dict(include_replay_data=True)
+    replays = [replay.to_dict(include_replay_data=bool(include))
                async for replay in controller.get_replays(query_params, per_page=per_page, page=page)]
 
     return jsonify(replays=replays, current_page=page, max_page=max_page)
@@ -115,7 +131,7 @@ async def get_replay_api(replay_id):
     try:
         int(replay_id)
     except ValueError:
-        return jsonify({"error": f"Invalid parameter given for replay_id, {replay_id} is not an integer"})
+        return jsonify({"error": f"Invalid parameter given for replay_id, {replay_id} is not an integer"}), 401
 
     async for replay in controller.get_replay({"replay_id": replay_id}):
         if replay is None:
@@ -148,7 +164,7 @@ async def update_replay_api(replay_id):
     try:
         int(replay_id)
     except ValueError:
-        return jsonify({"error": f"Invalid parameter given for replay_id, {replay_id} is not an integer"})
+        return jsonify({"error": f"Invalid parameter given for replay_id, {replay_id} is not an integer"}), 401
 
     replay = await controller.update_replay(replay_id)
     if replay is None:
@@ -156,7 +172,7 @@ async def update_replay_api(replay_id):
         code = 404
     else:
         response = jsonify(replay.to_dict())
-        code = 200
+        code = 204
 
     return clear_cache_on_success(response, code)
 
@@ -169,7 +185,7 @@ async def delete_replay_api(replay_id):
     try:
         int(replay_id)
     except ValueError:
-        return jsonify({"error": f"Invalid parameter given for replay_id, {replay_id} is not an integer"})
+        return jsonify({"error": f"Invalid parameter given for replay_id, {replay_id} is not an integer"}), 401
 
     delete = await controller.delete_replay(replay_id)
 
@@ -186,7 +202,12 @@ async def delete_replay_api(replay_id):
 @bp.route("download", methods=["GET"])
 @limiter.limit("20 per 10 second")
 async def download_replay():
-    replay_id = int(request.args.get("replay_id", None))
+    replay_id = None
+    try:
+        replay_id = int(request.args.get("replay_id", None))
+    except ValueError:
+        return jsonify({"error": f"Invalid parameter given for replay_id, {replay_id} is not an integer"}), 401
+
     replay_data = await controller.download_replay(replay_id)
 
     if replay_data is None:
@@ -200,14 +221,25 @@ async def download_replay():
 @limiter.limit("20 per 10 second")
 async def download_set():
     data = request.args.to_dict(flat=False)
-    replay_ids = [int(n) for n in data["replay_ids"][0].split(",")]
+
+    if "replay_ids" not in data:
+        return jsonify({"error": f"replay_ids, is a required parameter"}), 401
+
+    replay_ids = []
+    flag = None
+    try:
+        for replay_id in data["replay_ids"][0].split(","):
+            replay_ids.append(int(replay_id))
+            flag = replay_id
+    except ValueError:
+        return jsonify({"error": f"Invalid parameter in replay_ids, {flag} is not an integer"}), 401
 
     set_data = await controller.download_replays(replay_ids)
 
     if not set_data:
         return jsonify({"error": f"Replay(s) with ID(s): {','.join(str(n) for n in replay_ids)} not found"}), 404
 
-    stream, filename = set_data
+    stream, filename, mimetype = set_data
 
     return send_file(stream, as_attachment=True,
-                     download_name=f"replays-{os.path.splitext(filename)[0]}.zip"), 200
+                     download_name=f"replays-{os.path.splitext(filename)[0]}.zip", mimetype=mimetype), 200
