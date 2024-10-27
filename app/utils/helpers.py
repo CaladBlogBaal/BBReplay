@@ -153,7 +153,7 @@ def assign_wins(replay: dict):
     # Set the win values based on winner, winner just means the person who recorded the replay won.
     if is_player1:
         # for some odd reason 0 becomes True, 1 becomes false, if the recorder is on p1 side, instead of p2 side
-        replay["p1wins"] = int(1 - (replay["winner"] is False))  # If they won the replay as they're on p1 side this
+        replay["p1wins"] = int(1 - (not replay["winner"] == 0))  # If they won the replay as they're on p1 side this
         # evaluates to 0 else 1
         replay["p2wins"] = 1 - replay["p1wins"]  # This is evaluated to the opposite of p1wins
 
