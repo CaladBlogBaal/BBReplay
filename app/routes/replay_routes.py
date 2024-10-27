@@ -37,7 +37,7 @@ def page_out_of_bounds(page: int, max_page: int) -> tuple[Response, int]:
 
 
 def validate_replay_query(params: dict, model: typing.Type[BaseModel]) -> None:
-    valid_keys = model.__dict__.keys()
+    valid_keys = model.__fields__.keys()
     param_copy = params.copy()
     for key in param_copy:
         if key not in valid_keys:
@@ -99,6 +99,7 @@ def get_character_icons():
 async def get_replays_api():
     query_params = request.args.to_dict()
     validate_replay_query(query_params, ReplayQuery)
+    print(query_params)
     for key in query_params:
         try:
             query_params[key] = int(query_params[key])
