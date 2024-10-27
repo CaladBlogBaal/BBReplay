@@ -1,6 +1,7 @@
 import os
 import typing
-from typing import Tuple
+
+from urllib.parse import urlencode
 
 from flask import Blueprint, request, jsonify, Flask, send_file, Response
 from pydantic import BaseModel
@@ -21,7 +22,7 @@ limiter.limit("1/second")(bp)
 
 
 def page_out_of_bounds(page: int, max_page: int) -> tuple[Response, int]:
-    if page > max_page:
+    if page > max_page > 1:
         return jsonify({
             "error": "Page out of bounds",
             "message": f"The requested page {page} exceeds the maximum page number {max_page}.",
@@ -44,6 +45,10 @@ def validate_replay_query(params: dict, model: typing.Type[BaseModel]) -> None:
             del params[key]
 
 
+def dict_to_url_query(params: dict):
+    return urlencode(params)
+
+
 @bp.route("/api/replay-sets", methods=["GET"])
 @limiter.limit("20 per 10 second")
 async def get_replays_into_sets():
@@ -62,8 +67,8 @@ async def get_replays_into_sets():
         replays_list = [replay.to_dict() async for replay in controller.get_replays(params, page=page,
                                                                                     per_page=per_page)]
 
-        if not isinstance(replays_list, list):
-            return jsonify(replays_list), 404
+        if not replays_list:
+            return jsonify({"error": f"Replay(s) with query parameters `{dict_to_url_query(params)}` not found"}), 404
 
         replay_cache.set(params, replays_list)
         replays = replay_cache.get(params)
@@ -99,7 +104,6 @@ def get_character_icons():
 async def get_replays_api():
     query_params = request.args.to_dict()
     validate_replay_query(query_params, ReplayQuery)
-    print(query_params)
     for key in query_params:
         try:
             query_params[key] = int(query_params[key])
@@ -121,6 +125,9 @@ async def get_replays_api():
 
     replays = [replay.to_dict(include_replay_data=bool(include))
                async for replay in controller.get_replays(query_params, per_page=per_page, page=page)]
+
+    if not replays:
+        return jsonify({"error": f"Replay(s) with query parameters `{dict_to_url_query(query_params)}` not found"}), 404
 
     return jsonify(replays=replays, current_page=page, max_page=max_page)
 
