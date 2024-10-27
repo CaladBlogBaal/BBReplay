@@ -1,7 +1,7 @@
 # BBReplay
 ## Introduction
 
-BBReplay is a website to host and serve replay data from the game BlazBlue Central Fiction. Replays can be uploaded to the site to be later served and displayed. They can be filtered on the site through searches, by recorded_at date, player names, or characters used. The replays can be automatically uploaded through the BBCF Improvement Mod. This site was created as a personal project but can be used by others. Unlike the barebones BBCFIM site, BBReplay includes CSS for a better user experience. The site also exposes a public API for managing replays.
+[BBReplay](http://51.210.101.138:8080/) is a website to host and serve replay data from the game BlazBlue Central Fiction. Replays can be uploaded to the site to be served and displayed. They can be filtered on the site through creation date, player names, or characters used. Replays can be automatically uploaded through the [BBCF Improvement Mod fork](https://github.com/libreofficecalc/BBCF-Improvement-Mod/releases). This site was created as a personal project but can be used by others. The site also exposes a public API for managing replays.
 ## Table of Contents
 
 - [Installation](#installation)
@@ -150,17 +150,18 @@ The routes are defined in routes/replay_routes.py
 - Parameters:
   - query_params (optional):
 
-| query_params | Type      | Description                                                           |
-|----------------------|-----------|-----------------------------------------------------------------------|
-| `replay_id`          | Integer   | Unique identifier for each replay.                                    |
-| `p1`                 | String    | Player 1's name.                                                      |
-| `p1_character_id`    | Integer   | Character ID for Player 1, must be within the specified range. (0-35) |
-| `p2`                 | String    | Player 2's name.                                                      |
-| `p2_character_id`    | Integer   | Character ID for Player 2, must be within the specified range. (0-35) |
-| `recorder`           | String    | Name of the person who recorded the replay.                           |
-| `p1_steamid64`       | Integer   | Steam ID for Player 1.                                                |
-| `p2_steamid64`       | Integer   | Steam ID for Player 2.                                                |
-| `recorder_steamid64` | Integer   | Steam ID for the recorder.                                            |
+| query_params         | Type    | Description                                                           |
+|----------------------|---------|-----------------------------------------------------------------------|
+| `replay_id`          | Integer | Unique identifier for each replay.                                    |
+| `p1`                 | String  | Player 1's name.                                                      |
+| `p1_character_id`    | Integer | Character ID for Player 1, must be within the specified range. (0-35) |
+| `p2`                 | String  | Player 2's name.                                                      |
+| `p2_character_id`    | Integer | Character ID for Player 2, must be within the specified range. (0-35) |
+| `recorder`           | String  | Name of the person who recorded the replay.                           |
+| `p1_steamid64`       | Integer | Steam ID for Player 1.                                                |
+| `p2_steamid64`       | Integer | Steam ID for Player 2.                                                |
+| `recorder_steamid64` | Integer | Steam ID for the recorder.                                            |
+| `Include`            | Boolean | A flag for including replay binary.                                   |
 
   - Response:
    Returns a JSON array containing replay data.
