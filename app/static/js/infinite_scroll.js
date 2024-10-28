@@ -97,7 +97,8 @@ const replayLoader = {
 
         const buttonCol = createElementWithClass('div', 'col-auto button');
         const playerLink = createElementWithClass('a', 'font-weight-medium');
-        playerLink.href = '#';
+        // Will probably do something else with this
+        playerLink.href = `?p1=${player}`;
         playerLink.textContent = player;
         buttonCol.appendChild(playerLink);
 
