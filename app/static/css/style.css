@@ -17,6 +17,7 @@ body {
 }
 
 .button {
+  position: relative; /* Ensure the button is the positioning context */
   font: bold 11px Arial;
   text-decoration: none;
   background-color: var(--granite);
@@ -49,7 +50,6 @@ body {
 }
 .button a:active {
   color: white;
-  background-color: black;
   text-decoration: none;
   font-size: 16px;
 }
@@ -90,12 +90,58 @@ body {
     margin-top: 2rem;
 }
 .custom-button {
-    background: '';
+    position: relative; /* Make it relative to position the ::before overlay */
+    background: url('/static/img/question-circle-icon.png') no-repeat center center;
     background-size: cover;
     border: none;
     width: 3.125em;
     height: 3.125em;
+    overflow: visible;
+    cursor: pointer;
+    outline: none;
 }
+
+/* Create the overlay effect using ::before */
+.custom-button::before,
+.button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 150%;
+    height: 150%;
+    background: rgba(216,100,137, 0); /* Default transparent background */
+    transition: background 0.2s ease, opacity 0.5s ease; /* Smooth transition */
+    pointer-events: none; /* Ignore clicks on the pseudo-element */
+    transform: translate(-50%, -50%); /* Center the overlay */
+    border-radius: 0.25em;
+}
+
+.button::before {
+    width: 120%;
+    height: 150%;
+}
+
+/* Hover effect - semi-transparent overlay */
+.custom-button:hover::before,
+.button:hover::before {
+    background: rgba(216,100,137, 0.3);
+}
+
+/* Flash effect class - for when the button is clicked */
+.custom-button.flash::before,
+.button.flash::before {
+    background: rgba(236,120,157, 0.5); /* Stronger flash color */
+    opacity: 1; /* Ensure it's fully opaque initially */
+    transition: opacity 0.5s ease-out; /* Fade out effect */
+}
+
+/* Fade the flash to transparent */
+.custom-button.flash.fade-out::before,
+button.flash.fade-out::before {
+    opacity: 0; /* Fade it out completely */
+}
+
 .custom-button:focus {
     outline: none;
 }
