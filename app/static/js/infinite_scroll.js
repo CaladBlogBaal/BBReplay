@@ -139,7 +139,21 @@ const replayLoader = {
     const dateRow = createElementWithClass('div', 'row my-1 no-gutters');
     const dateCol = createElementWithClass('div', 'col');
     const dateSpan = createElementWithClass('span', 'main-font caption');
-    dateSpan.textContent = replay.recorded_at;
+    const utcDateString = replay.recorded_at;
+    // Create a Date object using the UTC date string
+    const date = new Date(utcDateString);
+    const options = {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'long',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZoneName: 'short'
+    };
+    dateSpan.textContent = date.toLocaleString(undefined, options);
+
     dateCol.appendChild(dateSpan);
     dateRow.appendChild(dateCol);
 
