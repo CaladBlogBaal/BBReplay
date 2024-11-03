@@ -29,6 +29,11 @@ const replayLoader = {
 
             const response = await fetch(`api/replay-sets?${params.toString()}`);
             if (!response.ok) {
+                if (response.status == 404) {
+                    // block the pagination
+                    this.maxPage = 0;
+                    return;
+                }
                 console.error('Error: Response not OK', response.statusText);
                 return;
             }
