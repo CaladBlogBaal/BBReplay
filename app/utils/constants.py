@@ -13,7 +13,7 @@ CHARACTERS = {
     11: "Nu",
     12: "Tsubaki",
     13: "Hazama",
-    14: "Mu",
+    14: "Mu-12",
     15: "Makoto",
     16: "Valkenhayn",
     17: "Platinum",
