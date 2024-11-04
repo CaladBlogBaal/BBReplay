@@ -66,7 +66,7 @@ class ReplayController:
                 "character_1_name": CHARACTERS[row.character_1_id],
                 "character_2_name": CHARACTERS[row.character_2_id]
             }
-            for row in rows
+            for row in rows if row.character_1_id != row.character_2_id
         ]
 
         return matchup_stats
