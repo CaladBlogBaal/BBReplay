@@ -1,10 +1,15 @@
 {% extends "search.html" %}
 {% block replay %}
-  <div id="replays-container" class="row">
+  <div id="replaysContainer" class="row">
   <!-- Replays will be loaded here dynamically -->
   </div>
   <div id="loading" class="text-center" style="display: none;">
       <p>Loading...</p>
   </div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/history.js') }}"></script>
+<script src="{{ url_for('static', filename='js/flash.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/infinite_scroll.js') }}"></script>
 {% endblock %}
