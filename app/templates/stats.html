@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block stats %}
+  <div id="statsContainer" class="row">
+      <div id="totalReplays">
+        <H3>
+            <!-- Value will be inserted dynamically here -->
+        </H3>
+    </div>
+
+    <button id="toggleButton" class="button">Show All Characters</button>
+      <div style="position: relative; height:60vh; width:100vw">
+          <canvas id="characterChart">
+          </canvas>
+      </div>
+  <ul id="matchupRarity">
+        <!-- Matchup rarity will be loaded here dynamically -->
+  </ul>
+  <div id="totalPlayers">
+    <H3>
+        <!-- Value will be inserted dynamically here -->
+    </H3>
+      <div id="peakHours">
+    <H5>
+        <!-- Value will be inserted dynamically here -->
+    </H5>
+      </div>
+      <div style="position: relative; height:60vh; width:100vw">
+          <canvas id="peakHoursChart">
+          </canvas>
+      </div>
+    </div>
+  <H3>Character Matchups</H3>
+  <!--- <ul id="matchup-container" class="matchup-container"></ul> --->
+    <div id="matchupTitle"></div>
+    <table id="matchupTable" class="table-bordered table-sm">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Win Rate (%)</th>
+            <th>Matches Played</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Rows will be inserted here -->
+    </tbody>
+    </table>
+  <ul id="character-grid" class="character-grid"></ul>
+  <!-- Matchups will be loaded here dynamically -->
+  </div>
+{% endblock %}
+
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/stats.js') }}"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.css" />
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.js"></script>
+{% endblock %}
