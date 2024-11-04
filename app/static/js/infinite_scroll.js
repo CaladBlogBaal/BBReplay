@@ -44,7 +44,7 @@ const replayLoader = {
                 this.maxPage = this.page - 1;
             } else {
                 data.replays.forEach(replay => {
-                    $('#replays-container').append(this.renderReplay(replay));
+                    $('#replaysContainer').append(this.renderReplay(replay));
                 });
             }
 

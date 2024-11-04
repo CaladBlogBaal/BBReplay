@@ -96,14 +96,14 @@ function populateFieldsWithParameters() {
 // https://developer.mozilla.org/en-US/docs/Web/API/History_API/Working_with_the_History_API#using_pushstate
 window.addEventListener("popstate", (event) => {
     if (event.state) {
-        const replayContainer = document.getElementById('replays-container')
+        const replayContainer = document.getElementById('replaysContainer')
         replayContainer.replaceChildren();
         replayLoader.maxPage = event.state.maxPage;
         replayLoader.replayString = new URLSearchParams(window.location.search);
         // Convert page to a number before adding 1
         replayLoader.page = Number(replayLoader.replayString.get('page')) + 1 || 1;
         event.state.replays.forEach(replay => {
-          $('#replays-container').append(replayLoader.renderReplay(replay));
+          $('#replaysContainer').append(replayLoader.renderReplay(replay));
         });
         replayLoader.replayString.set('page', replayLoader.page.toString());
 
