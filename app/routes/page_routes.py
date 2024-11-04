@@ -8,6 +8,11 @@ from app.utils.helpers import clear_cache_on_success
 bp = Blueprint("page", __name__, url_prefix="/")
 
 
+@bp.route("/stats")
+async def stats():
+    return render_template("stats.html")
+
+
 @bp.route("/")
 async def index():
     if request.args:
