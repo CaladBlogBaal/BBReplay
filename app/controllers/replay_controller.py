@@ -16,6 +16,7 @@ from app.controllers.validation import validate_model_data, cast_attributes_to_t
 from app.services.replay_service import ReplayService
 
 from app.utils.helpers import read_data
+from app.utils.constants import CHARACTERS
 
 
 class ReplayController:
@@ -37,6 +38,75 @@ class ReplayController:
         else:
             # Data is invalid, return error response
             yield {"message": "data is invalid"}.update(validated_data)
+
+    async def get_character_usage_statistics(self):
+
+        rows = await self.service.get_character_usage_statistics()
+        character_stats = [
+            {
+                "character_id": row.character_id,
+                "total_matches": row.total_matches,
+                "average_win_rate": row.average_win_rate
+            }
+            for row in rows
+        ]
+
+        return character_stats
+
+    async def get_character_matchup_statistics(self, character_id: int = None):
+        rows = await self.service.get_matchup_statistics(character_id)
+
+        matchup_stats = [
+            {
+                "character_1_id": row.character_1_id,
+                "character_2_id": row.character_2_id,
+                "matches_played": row.matches_played,
+                "character_1_win_rate": row.p1_win_rate,
+                "character_2_win_rate": row.p2_win_rate,
+                "character_1_name": CHARACTERS[row.character_1_id],
+                "character_2_name": CHARACTERS[row.character_2_id]
+            }
+            for row in rows
+        ]
+
+        return matchup_stats
+
+    async def get_total_replays(self):
+        return await self.service.get_total_replays()
+
+    async def get_total_replays_per_character(self):
+        rows = await self.service.get_total_replays_per_character()
+        total_per_character = [
+            {
+                "character_id": row.character_id,
+                "total": row.total,
+                "character_name": CHARACTERS[row.character_id]
+            }
+            for row in rows
+        ]
+        return total_per_character
+
+    async def get_matchup_rarity(self):
+        rows = await self.service.get_matchup_rarity()
+        matchup_rarity = [
+            {
+                "character_1_id": row.character_1_id,
+                "character_2_id": row.character_2_id,
+                "matchup_count": row.matchup_count,
+                "percentage": row.percentage,
+                "character_1_name": CHARACTERS[row.character_1_id],
+                "character_2_name": CHARACTERS[row.character_2_id]
+
+            }
+            for row in rows
+        ]
+        return matchup_rarity
+
+    async def get_total_unique_players(self):
+        return await self.service.get_total_unique_players()
+
+    async def get_all_replay_timestamps(self):
+        return self.service.get_all_replay_timestamps()
 
     async def get_replays(self, query_params: Dict[str, Union[int, str, bytes]] = None, per_page=None, page=1) \
             -> typing.AsyncGenerator[Replay, None]:

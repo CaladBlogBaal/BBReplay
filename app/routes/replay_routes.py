@@ -251,3 +251,48 @@ async def download_set():
 
     return send_file(stream, as_attachment=True,
                      download_name=f"replays-{os.path.splitext(filename)[0]}.zip", mimetype=mimetype), 200
+
+
+@bp.route("/api/replay/character-usage", methods=["GET"])
+async def character_usage():
+    data = await controller.get_character_usage_statistics()
+    return jsonify(data)
+
+
+@bp.route("/api/replay/matchup-rarity", methods=["GET"])
+async def matchup_rarity():
+    data = await controller.get_matchup_rarity()
+    return jsonify(data)
+
+
+@bp.route("/api/replay/total", methods=["GET"])
+async def get_total_replays():
+    data = await controller.get_total_replays()
+    return jsonify(data)
+
+
+@bp.route("/api/replay/total-players", methods=["GET"])
+async def get_total_players():
+    data = await controller.get_total_unique_players()
+    return jsonify({"total": data})
+
+
+@bp.route("/api/replay/total-per-character", methods=["GET"])
+async def get_total_replays_per_character():
+    data = await controller.get_total_replays_per_character()
+    return jsonify(data)
+
+
+@bp.route("/api/replay/character-matchup-stats", methods=["GET"])
+async def character_matchup():
+
+    character_id = request.args.get("character_id", None, type=int)
+
+    data = await controller.get_character_matchup_statistics(character_id)
+    return jsonify(data)
+
+
+@bp.route("api/replay-timestamps", methods=["GET"])
+async def get_all_timestamps():
+    data = await controller.get_all_replay_timestamps()
+    return jsonify([timestamp async for timestamp in data])

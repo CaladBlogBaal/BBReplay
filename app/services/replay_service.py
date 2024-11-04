@@ -4,7 +4,8 @@ import typing
 from io import BytesIO
 from datetime import datetime, timezone
 
-from sqlalchemy import func, extract, or_, and_, desc
+import sqlalchemy
+from sqlalchemy import func, extract, or_, and_, desc, case, cast
 from sqlalchemy.future import select
 from sqlalchemy.exc import NoResultFound
 
@@ -131,6 +132,177 @@ class ReplayService:
 
         async for replay in await session.stream_scalars(query):
             yield replay
+
+    async def get_total_replays(self):
+        async with self.acquire() as session:
+            logger.info(f"Returned total count of replays.")
+            return (await session.execute(select(func.count(Replay.replay_id)))).scalar()
+
+    async def get_total_unique_players(self):
+        async with self.acquire() as session:
+            result = await session.execute(select(
+                func.count(func.distinct(Replay.recorder_steamid64)))
+            )
+            total_players = result.scalar()
+            logger.info(f"Returned total count of unique players.")
+            return total_players
+
+    async def get_total_replays_per_character(self):
+        async with self.acquire() as session:
+            query = select(
+                func.count(Replay.p1_character_id == Replay.p2_character_id).label("total"),
+                Replay.p1_character_id.label("character_id")
+            ).group_by(
+                Replay.p1_character_id
+            ).order_by(func.count().desc())
+
+            results = (await session.execute(query)).fetchall()
+
+            logger.info(f"Returned total replays per character.")
+            return results
+
+    async def get_matchup_statistics(self, character_id: int = None):
+        async with self.acquire() as session:
+            matchup_query = (
+                select(
+                    func.least(Replay.p1_character_id, Replay.p2_character_id).label("character_1_id"),
+                    func.greatest(Replay.p1_character_id, Replay.p2_character_id).label("character_2_id"),
+                    func.count().label("matches_played"),
+                    func.round(
+                        func.avg(
+                            case(
+                                # If the recorder is Player 1
+                                (Replay.recorder_steamid64 == Replay.p1_steamid64,
+                                 case((Replay.winner == 1, 1), else_=0)),
+                                # If the recorder is Player 2
+                                (Replay.recorder_steamid64 == Replay.p2_steamid64,
+                                 case((Replay.winner == 0, 1), else_=0)),
+                                else_=0
+                            )
+                        ) * 100, 2
+                    ).label("p1_win_rate"),
+                    func.round(
+                        func.avg(
+                            case(
+                                # If the recorder is Player 1
+                                (Replay.recorder_steamid64 == Replay.p1_steamid64,
+                                 case((Replay.winner == 0, 1), else_=0)),
+                                # If the recorder is Player 2
+                                (Replay.recorder_steamid64 == Replay.p2_steamid64,
+                                 case((Replay.winner == 1, 1), else_=0)),
+                                else_=0
+                            )
+                        ) * 100, 2
+                    ).label("p2_win_rate")
+                )
+                .group_by(
+                    func.least(Replay.p1_character_id, Replay.p2_character_id),
+                    func.greatest(Replay.p1_character_id, Replay.p2_character_id)
+                )
+                .order_by(func.count().desc())
+            )
+
+            if character_id:
+                matchup_query = matchup_query.where(
+                    or_(Replay.p1_character_id == character_id,
+                        Replay.p2_character_id == character_id))
+
+            results = (await session.execute(matchup_query)).fetchall()
+            logger.info(f"Returned matchup statistics.")
+            return results
+
+    async def get_matchup_rarity(self):
+        async with self.acquire() as session:
+            # Subquery to calculate total replays
+            total_replays_subquery = select(func.count(Replay.replay_id)).scalar_subquery()
+
+            matchup_rarity = (
+                select(
+                    func.least(Replay.p1_character_id, Replay.p2_character_id).label("character_1_id"),
+                    func.greatest(Replay.p1_character_id, Replay.p2_character_id).label("character_2_id"),
+                    func.count().label("matchup_count"),
+                    func.round(
+                        (func.count() / total_replays_subquery)
+                        * 100, 2).label("percentage")
+                )
+                .group_by(
+                    func.least(Replay.p1_character_id, Replay.p2_character_id),
+                    func.greatest(Replay.p1_character_id, Replay.p2_character_id)
+                )
+                .order_by("matchup_count")
+            )
+            results = (await session.execute(matchup_rarity)).fetchall()
+
+            logger.info(f"Returned matchup statistics.")
+            return results
+
+    async def get_character_usage_statistics(self):
+        async with self.acquire() as session:
+            # Subquery for player 1 statistics
+            p1_query = (
+                select(
+                    Replay.p1_character_id.label("character_id"),
+                    func.count().label("matches_played"),
+                    func.round(
+                        func.avg(
+                            case(
+                                # If p1 is the recorder and Replay.winner == 0, p1 won;
+                                (Replay.recorder_steamid64 == Replay.p1_steamid64,
+                                 cast(not Replay.winner == 0, sqlalchemy.Integer)),
+                                else_=0
+                            )
+                        ) * 100, 2
+                    ).label("win_rate")
+                )
+                .group_by(Replay.p1_character_id)
+            )
+
+            # Subquery for player 2 statistics
+            p2_query = (
+                select(
+                    Replay.p2_character_id.label("character_id"),
+                    func.count().label("matches_played"),
+                    func.round(
+                        func.avg(
+                            case(
+                                # If p2 is the recorder and Replay.winner == 1, p2 won
+                                (Replay.recorder_steamid64 == Replay.p2_steamid64, Replay.winner),
+                                else_=0
+                            )
+                        ) * 100, 2
+                    ).label("win_rate")
+                )
+                .group_by(Replay.p2_character_id)
+            )
+
+            # Combine both queries with UNION to get overall statistics
+            combined_query = p1_query.union_all(p2_query).subquery()
+
+            # Summarize combined results by character_id
+            final_query = (
+                select(
+                    combined_query.c.character_id,
+                    func.sum(combined_query.c.matches_played).label("total_matches"),
+                    func.round(func.avg(combined_query.c.win_rate), 2).label("average_win_rate")
+                )
+                .group_by(combined_query.c.character_id)
+                .order_by(func.sum(combined_query.c.matches_played).desc())
+            )
+
+            results = (await session.execute(final_query)).fetchall()
+            logger.info(f"Returned character usage statistics.")
+
+            return results
+
+    async def get_all_replay_timestamps(self):
+        async with self.acquire() as session:
+
+            query = select(Replay.recorded_at)
+
+            async for replay in self._stream_replays(query, session):
+                yield replay
+
+            logger.info(f"Returned all replay timestamps.")
 
     async def get_replays(self, query_params: typing.Dict[str, typing.Union[int, str, bytes]],
                           per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
