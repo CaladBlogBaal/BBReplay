@@ -324,7 +324,20 @@ function populateMatchupList(data) {
         characterGrid.appendChild(characterCard);
     });
 
-    const table = $('#matchupTable').DataTable();
+    const table = $('#matchupTable').DataTable({
+        scrollY: '40vh', // Sets table height to 40% of viewport
+        scrollCollapse: true,
+        responsive: true,
+        columnDefs: [
+        { responsivePriority: 1, targets: 0 },
+        { responsivePriority: 2, targets: -1 }
+        ],
+        layout: {
+        topStart: {
+            buttons: ['copyHtml5', 'excelHtml5', 'csvHtml5', 'pdfHtml5']
+        }
+    }
+    });
 
     function displayMatchups(character) {
         // Clear existing matchups
