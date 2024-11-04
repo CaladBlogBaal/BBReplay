@@ -2,7 +2,7 @@ import replayLoader from './infinite_scroll.js';
 
 const replayManager = {
     // constant
-    replayContainer: document.getElementById('replays-container'),
+    replayContainer: document.getElementById('replaysContainer'),
     // to track the state of input fields
     previousValues: {
         p1: null,
