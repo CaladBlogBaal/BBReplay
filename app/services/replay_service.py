@@ -168,31 +168,37 @@ class ReplayService:
                     func.least(Replay.p1_character_id, Replay.p2_character_id).label("character_1_id"),
                     func.greatest(Replay.p1_character_id, Replay.p2_character_id).label("character_2_id"),
                     func.count().label("matches_played"),
+                    # Calculate win rates for each character by dividing their wins by total matches and converting that to a percentage
                     func.round(
-                        func.avg(
+                        (func.sum(
                             case(
-                                # If the recorder is Player 1
-                                (Replay.recorder_steamid64 == Replay.p1_steamid64,
-                                 case((Replay.winner == 1, 1), else_=0)),
-                                # If the recorder is Player 2
-                                (Replay.recorder_steamid64 == Replay.p2_steamid64,
-                                 case((Replay.winner == 0, 1), else_=0)),
+
+                                ((Replay.p1_character_id == func.least(Replay.p1_character_id,
+                                                                       Replay.p2_character_id)) & (
+                                         Replay.winner == 0), 1),
+                                ((Replay.p2_character_id == func.least(Replay.p1_character_id,
+                                                                       Replay.p2_character_id)) & (
+                                         Replay.winner == 1), 1)
+                                ,
                                 else_=0
                             )
-                        ) * 100, 2
+                        ) / func.count()) * 100, 2
                     ).label("p1_win_rate"),
+
                     func.round(
-                        func.avg(
+                        (func.sum(
                             case(
-                                # If the recorder is Player 1
-                                (Replay.recorder_steamid64 == Replay.p1_steamid64,
-                                 case((Replay.winner == 0, 1), else_=0)),
-                                # If the recorder is Player 2
-                                (Replay.recorder_steamid64 == Replay.p2_steamid64,
-                                 case((Replay.winner == 1, 1), else_=0)),
+
+                                ((Replay.p1_character_id == func.greatest(Replay.p1_character_id,
+                                                                          Replay.p2_character_id)) & (
+                                         Replay.winner == 0), 1),
+                                ((Replay.p2_character_id == func.greatest(Replay.p1_character_id,
+                                                                          Replay.p2_character_id)) & (
+                                         Replay.winner == 1), 1)
+                                ,
                                 else_=0
                             )
-                        ) * 100, 2
+                        ) / func.count()) * 100, 2
                     ).label("p2_win_rate")
                 )
                 .group_by(
@@ -201,7 +207,6 @@ class ReplayService:
                 )
                 .order_by(func.count().desc())
             )
-
             if character_id:
                 matchup_query = matchup_query.where(
                     or_(Replay.p1_character_id == character_id,
@@ -296,7 +301,6 @@ class ReplayService:
 
     async def get_all_replay_timestamps(self):
         async with self.acquire() as session:
-
             query = select(Replay.recorded_at)
 
             async for replay in self._stream_replays(query, session):
