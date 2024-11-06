@@ -27,6 +27,7 @@ def create_app():
     app.config["DATABASE_URL"] = settings.database_url
     app.config["API_KEY"] = settings.api_key
     app.config["SECRET_KEY"] = settings.secret
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB limit
     # Initialize DBManager with a logger instance
     logger_handler_instance = app.logger  # Use Flask's logger
     db_manager.initialize(logger_handler_instance)
