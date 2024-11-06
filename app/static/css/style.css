@@ -333,7 +333,7 @@ button.flash.fade-out::before {
 }
 
 .selected {
-    box-shadow: 0 0 10px 5px rgba(102, 204, 0, 0.8);
+    box-shadow: 0 0 10px 5px rgba(102, 204, 102, 0.8);
     transition: box-shadow 0.3s ease;
 }
 
