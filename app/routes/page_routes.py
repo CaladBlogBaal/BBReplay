@@ -1,6 +1,7 @@
 from flask import Blueprint, flash, render_template, request
 
 from app.controllers import file_controller
+from app.controllers.file_controller import CorruptedFile
 
 from app.forms.upload import UploadForm
 from app.utils.helpers import clear_cache_on_success
@@ -28,11 +29,16 @@ async def upload():
         for file in form.files.data:
             file = file
             data = file.read()
-            replay = await file_controller.upload_file("1.dat", data)
-            if replay:
-                clear_cache_on_success(replay, 201)
-                flash("Replay successfully uploaded!", "success")
-            else:
-                flash("Replay already exists", "failure")
+            try:
+                replay = await file_controller.upload_file("1.dat", data)
+
+                if replay:
+                    clear_cache_on_success(replay, 201)
+                    flash("Replay successfully uploaded!", "success")
+                else:
+                    flash("Replay already exists", "failure")
+
+            except CorruptedFile:
+                flash(f"Invalid replay data: data is too small/big or corrupted.")
 
     return render_template("upload.html", form=form)
