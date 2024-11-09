@@ -1,7 +1,7 @@
 # BBReplay
 ## Introduction
 
-[BBReplay](http://51.210.101.138:8080/) is a website to host and serve replay data from the game BlazBlue Central Fiction. Replays can be uploaded to the site to be served and displayed. They can be filtered on the site through creation date, player names, or characters used. Replays can be automatically uploaded through the [BBCF Improvement Mod fork](https://github.com/libreofficecalc/BBCF-Improvement-Mod/releases). This site was created as a personal project but can be used by others. The site also exposes a public API for managing replays.
+[BBReplay](https://bbreplay.ovh/) is a website to host and serve replay data from the game BlazBlue Central Fiction. Replays can be uploaded to the site to be served and displayed. They can be filtered on the site through creation date, player names, or characters used. Replays can be automatically uploaded through the [BBCF Improvement Mod fork](https://github.com/libreofficecalc/BBCF-Improvement-Mod/releases). This site was created as a personal project but can be used by others. The site also exposes a public API for managing replays.
 ## Table of Contents
 
 - [Installation](#installation)
