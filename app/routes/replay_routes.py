@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 from flask import Blueprint, request, jsonify, Flask, send_file, Response
 from pydantic import BaseModel
+from sqlalchemy.exc import NoResultFound
 
 from app.utils.cache import cache
 from app.utils.constants import CHARACTERS
@@ -64,10 +65,10 @@ async def get_replays_into_sets():
     if cached_data:
         replays = cached_data
     else:
-        replays_list = [replay.to_dict() async for replay in controller.get_replays(params, page=page,
-                                                                                    per_page=per_page)]
-
-        if not replays_list:
+        try:
+            replays_list = [replay.to_dict() async for replay in controller.get_replays(params, page=page,
+                                                                                        per_page=per_page)]
+        except NoResultFound:
             return jsonify({"error": f"Replay(s) with query parameters `{dict_to_url_query(params)}` not found"}), 404
 
         replay_cache.set(params, replays_list)
@@ -123,10 +124,11 @@ async def get_replays_api():
     if check:
         return check
 
-    replays = [replay.to_dict(include_replay_data=bool(include))
-               async for replay in controller.get_replays(query_params, per_page=per_page, page=page)]
+    try:
+        replays = [replay.to_dict(include_replay_data=bool(include))
+                   async for replay in controller.get_replays(query_params, per_page=per_page, page=page)]
 
-    if not replays:
+    except NoResultFound:
         return jsonify({"error": f"Replay(s) with query parameters `{dict_to_url_query(query_params)}` not found"}), 404
 
     return jsonify(replays=replays, current_page=page, max_page=max_page)
