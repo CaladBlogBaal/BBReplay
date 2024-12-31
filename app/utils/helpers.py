@@ -24,6 +24,47 @@ app = Flask("app")
 UTC_TIMEZONE = pytz.utc
 
 
+def order_by_cretia_replays(replays: typing.List[Replay], **options):
+    pos = options.get("pos", "")
+
+    for replay in replays:
+        for key, value in replay.items():
+            if any(search_option.lower() in str(value).lower()for search_option in options.get("search", ())):
+                if "p2" in key and pos == "LEFT":
+                    p1 = replay["p1"]
+                    p1_steam = replay["p1_steamid64"]
+                    p1_character = replay["p1_character_id"]
+
+                    p2 = replay["p2"]
+                    p2_steam = replay["p2_steamid64"]
+                    p2_character = replay["p2_character_id"]
+
+                    replay["p1"] = p2
+                    replay["p1_steamid64"] = p2_steam
+                    replay["p1_character_id"] = p2_character
+
+                    replay["p2"] = p1
+                    replay["p2_steamid64"] = p1_steam
+                    replay["p2_character_id"] = p1_character
+
+                elif "p1" in key and pos == "RIGHT":
+                    p1 = replay["p1"]
+                    p1_steam = replay["p1_steamid64"]
+                    p1_character = replay["p1_character_id"]
+
+                    p2 = replay["p2"]
+                    p2_steam = replay["p2_steamid64"]
+                    p2_character = replay["p2_character_id"]
+
+                    replay["p1"] = p2
+                    replay["p1_steamid64"] = p2_steam
+                    replay["p1_character_id"] = p2_character
+
+                    replay["p2"] = p1
+                    replay["p2_steamid64"] = p1_steam
+                    replay["p2_character_id"] = p1_character
+
+
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
