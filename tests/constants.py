@@ -765,3 +765,137 @@ REPlAYS_3RD = {
     }
   ]
 }
+
+REPLAYS_SET = {
+  "current_page": 1,
+  "max_page": 1,
+  "replays": [
+    {
+      "filename": "03df0a23327626bb7c28900f3.dat",
+      "p1": "V3ndetta",
+      "p1_character_id": 0,
+      "p1_steamid64": 76561199122437571,
+      "p1icon": "BBCF_Ragna_the_Bloodedge_Icon.png",
+      "p1wins": 2,
+      "p2": "Dark Souls II",
+      "p2_character_id": 17,
+      "p2_steamid64": 76561198079498381,
+      "p2icon": "BBCF_Platinum_the_Trinity_Icon.png",
+      "p2wins": 4,
+      "recorded_at": "Thu, 13 Jun 2024 15:59:35 GMT",
+      "recorder": "Dark Souls II",
+      "recorder_steamid64": 76561198079498381,
+      "replay_id": 9,
+      "set": [
+        9,
+        8,
+        7,
+        6,
+        5,
+        114
+      ],
+      "upload_date": "Fri, 14 Jun 2024 23:55:03 GMT",
+      "winner": 1
+    },
+    {
+      "filename": "c894334fcfddea18002168b4b.dat",
+      "p1": "Mike3010",
+      "p1_character_id": 0,
+      "p1_steamid64": 76561198342284654,
+      "p1icon": "BBCF_Ragna_the_Bloodedge_Icon.png",
+      "p1wins": 0,
+      "p2": "Dark Souls II",
+      "p2_character_id": 17,
+      "p2_steamid64": 76561198079498381,
+      "p2icon": "BBCF_Platinum_the_Trinity_Icon.png",
+      "p2wins": 2,
+      "recorded_at": "Wed, 12 Jun 2024 19:50:42 GMT",
+      "recorder": "Dark Souls II",
+      "recorder_steamid64": 76561198079498381,
+      "replay_id": 30,
+      "set": [
+        30,
+        29
+      ],
+      "upload_date": "Fri, 14 Jun 2024 23:55:05 GMT",
+      "winner": 1
+    },
+    {
+      "filename": "4d748b6e5416f3a17bf89daef.dat",
+      "p1": "SargeantFalco1...",
+      "p1_character_id": 0,
+      "p1_steamid64": 76561198290143097,
+      "p1icon": "BBCF_Ragna_the_Bloodedge_Icon.png",
+      "p1wins": 2,
+      "p2": "Dark Souls II",
+      "p2_character_id": 17,
+      "p2_steamid64": 76561198079498381,
+      "p2icon": "BBCF_Platinum_the_Trinity_Icon.png",
+      "p2wins": 0,
+      "recorded_at": "Wed, 12 Jun 2024 19:02:09 GMT",
+      "recorder": "Dark Souls II",
+      "recorder_steamid64": 76561198079498381,
+      "replay_id": 48,
+      "set": [
+        48,
+        47
+      ],
+      "upload_date": "Fri, 14 Jun 2024 23:55:07 GMT",
+      "winner": 0
+    },
+    {
+      "filename": "9d1d439e48ef9d82cec949881.dat",
+      "p1": "Q-chu train",
+      "p1_character_id": 0,
+      "p1_steamid64": 76561198133755160,
+      "p1icon": "BBCF_Ragna_the_Bloodedge_Icon.png",
+      "p1wins": 3,
+      "p2": "Dark Souls II",
+      "p2_character_id": 17,
+      "p2_steamid64": 76561198079498381,
+      "p2icon": "BBCF_Platinum_the_Trinity_Icon.png",
+      "p2wins": 4,
+      "recorded_at": "Wed, 12 Jun 2024 17:58:30 GMT",
+      "recorder": "Dark Souls II",
+      "recorder_steamid64": 76561198079498381,
+      "replay_id": 60,
+      "set": [
+        60,
+        59,
+        58,
+        57,
+        56,
+        53,
+        52
+      ],
+      "upload_date": "Fri, 14 Jun 2024 23:55:09 GMT",
+      "winner": 1
+    },
+    {
+      "filename": "a1a15130034676f6c52986988.dat",
+      "p1": "Nomad",
+      "p1_character_id": 0,
+      "p1_steamid64": 76561198802163135,
+      "p1icon": "BBCF_Ragna_the_Bloodedge_Icon.png",
+      "p1wins": 1,
+      "p2": "Dark Souls II",
+      "p2_character_id": 17,
+      "p2_steamid64": 76561198079498381,
+      "p2icon": "BBCF_Platinum_the_Trinity_Icon.png",
+      "p2wins": 4,
+      "recorded_at": "Sun, 09 Jun 2024 16:13:21 GMT",
+      "recorder": "Dark Souls II",
+      "recorder_steamid64": 76561198079498381,
+      "replay_id": 97,
+      "set": [
+        97,
+        94,
+        93,
+        91,
+        90
+      ],
+      "upload_date": "Fri, 14 Jun 2024 23:55:13 GMT",
+      "winner": 1
+    }
+  ]
+}
