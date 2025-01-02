@@ -77,6 +77,20 @@ def set_outcome(replay, player_side: str) -> str:
     return "WON" if replay["p2wins"] > replay["p1wins"] else "LOST"
 
 
+def prune_by_type(search_terms: typing.Iterable):
+    """Helper function to only allow one instance of a type"""
+    seen_types = set()  # To track encountered types
+    pruned_list = []
+
+    for item in search_terms:
+
+        if type(item) not in seen_types:
+            pruned_list.append(item)
+            seen_types.add(type(item))
+
+    return pruned_list
+
+
 def order_by_criteria_replays(replays: typing.List[dict], **options: typing.Dict[str, typing.Any]):
     """
      Filters and reorders a list of replays based on the given criteria in the options.
@@ -91,7 +105,8 @@ def order_by_criteria_replays(replays: typing.List[dict], **options: typing.Dict
      """
     pos = options.get("pos", "")
     outcome = options.get("outcome", "")
-    search_terms = options.get("search", ())
+    # To prioritize first found instance of a type to search by
+    search_terms = prune_by_type(options.get("search", ()))
 
     exclude_keys = ["p1wins", "p2wins"]
 
