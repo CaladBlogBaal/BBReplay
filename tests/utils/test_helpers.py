@@ -1,8 +1,8 @@
 import pytest
 
-from tests.constants import REPLAYS, REPlAYS_2ND, REPlAYS_3RD
+from tests.constants import REPLAYS, REPlAYS_2ND, REPlAYS_3RD, REPLAYS_SET
 from tests.helpers import generate_mock_replays_from_data
-from app.utils.helpers import total_up_wins, collapse_replays_into_sets, order_by_cretia_replays
+from app.utils.helpers import total_up_wins, collapse_replays_into_sets, order_by_criteria_replays
 
 
 @pytest.mark.unit
@@ -29,11 +29,10 @@ def test_collapse_replays_into_sets():
 
 @pytest.mark.unit
 def test_order_replays_by_options():
-    replays = [replay.to_dict(include_replay_data=False)
-               for replay in generate_mock_replays_from_data(REPLAYS)]
-    order_by_cretia_replays(replays, pos="LEFT", search=("76561199193114720"))
-    assert all(replay["p1"] == "MaddieX3" for replay in replays)
-    order_by_cretia_replays(replays, pos="RIGHT", search=("Maddie"))
-    assert all(replay["p2"] == "MaddieX3" for replay in replays)
-    order_by_cretia_replays(replays, pos="RIGHT", search=("JustATomato"))
-    assert all(replay["p2"] == "JustATomato" for replay in replays)
+    replays = REPLAYS_SET["replays"]
+    order_by_criteria_replays(replays, pos="LEFT", search=[76561198079498381])
+    assert all(replay["p1"] == "Dark Souls II" for replay in replays)
+    order_by_criteria_replays(replays, pos="RIGHT", search=["Dark"])
+    assert all(replay["p2"] == "Dark Souls II" for replay in replays)
+    order_by_criteria_replays(replays, pos="LEFT", search=["Dark"], outcome="WON")
+    assert all(replay["p1"] == "Dark Souls II" and replay["p1wins"] > replay["p2wins"] for replay in replays)

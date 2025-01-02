@@ -24,45 +24,111 @@ app = Flask("app")
 UTC_TIMEZONE = pytz.utc
 
 
-def order_by_cretia_replays(replays: typing.List[Replay], **options):
+def run_search(search: typing.Union[int, str], value: typing.Union[int, str]) -> bool:
+    """Helper function to validate a term"""
+    if isinstance(search, str) and isinstance(value, str):
+        return search.lower() in value.lower()
+    elif isinstance(search, int) and isinstance(value, int):
+        return search == value
+    return False
+
+
+def swap_set_icons(replay):
+    """helper function to swap player icons."""
+    p1icon = replay["p1icon"]
+    p2icon = replay["p2icon"]
+
+    replay["p1icon"] = p2icon
+    replay["p2icon"] = p1icon
+
+
+def swap_set_wins(replay):
+    """helper function to swap player scores."""
+    p1wins = replay["p1wins"]
+    p2wins = replay["p2wins"]
+
+    replay["p1wins"] = p2wins
+    replay["p2wins"] = p1wins
+
+
+def swap_players(replay):
+    """Helper function to swap players based on position."""
+
+    p1 = replay["p1"]
+    p1_steam = replay["p1_steamid64"]
+    p1_character = replay["p1_character_id"]
+
+    p2 = replay["p2"]
+    p2_steam = replay["p2_steamid64"]
+    p2_character = replay["p2_character_id"]
+
+    replay["p1"] = p2
+    replay["p1_steamid64"] = p2_steam
+    replay["p1_character_id"] = p2_character
+
+    replay["p2"] = p1
+    replay["p2_steamid64"] = p1_steam
+    replay["p2_character_id"] = p1_character
+
+
+def set_outcome(replay, player_side: str) -> str:
+    if player_side == "p1":
+        return "WON" if replay["p1wins"] > replay["p2wins"] else "LOST"
+    return "WON" if replay["p2wins"] > replay["p1wins"] else "LOST"
+
+
+def order_by_criteria_replays(replays: typing.List[dict], **options: typing.Dict[str, typing.Any]):
+    """
+     Filters and reorders a list of replays based on the given criteria in the options.
+
+     Args:
+         replays
+         **options (dict): Optional filter criteria. Possible keys include:
+             - "pos" (str): The player position to consider ("LEFT" or "RIGHT").
+             - "outcome" (str): The outcome to match for removal or player swapping.
+             - "search" (tuple): A sequence of terms to search for within replay values. The search will match replays
+               containing any of these terms.
+     """
     pos = options.get("pos", "")
+    outcome = options.get("outcome", "")
+    search_terms = options.get("search", ())
 
-    for replay in replays:
+    exclude_keys = ["p1wins", "p2wins"]
+
+    # Iterate in reverse to avoid issues with list modification
+    for i in range(len(replays) - 1, -1, -1):
+        replay = replays[i]
+
         for key, value in replay.items():
-            if any(search_option.lower() in str(value).lower()for search_option in options.get("search", ())):
-                if "p2" in key and pos == "LEFT":
-                    p1 = replay["p1"]
-                    p1_steam = replay["p1_steamid64"]
-                    p1_character = replay["p1_character_id"]
 
-                    p2 = replay["p2"]
-                    p2_steam = replay["p2_steamid64"]
-                    p2_character = replay["p2_character_id"]
+            if key in exclude_keys:
+                continue
 
-                    replay["p1"] = p2
-                    replay["p1_steamid64"] = p2_steam
-                    replay["p1_character_id"] = p2_character
+            if any(run_search(search_option, value) for search_option in search_terms):
 
-                    replay["p2"] = p1
-                    replay["p2_steamid64"] = p1_steam
-                    replay["p2_character_id"] = p1_character
+                if "p2" in key:
+                    # delete replay
+                    if set_outcome(replay, "p2") != outcome:
+                        del replays[i]
+                        continue
+                    # Swap players if position is specified
+                    if pos == "LEFT":
+                        swap_players(replay)
+                        swap_set_wins(replay)
+                        swap_set_icons(replay)
 
-                elif "p1" in key and pos == "RIGHT":
-                    p1 = replay["p1"]
-                    p1_steam = replay["p1_steamid64"]
-                    p1_character = replay["p1_character_id"]
+                elif "p1" in key:
+                    # delete replay
+                    if set_outcome(replay, "p1") != outcome:
+                        del replays[i]
+                        continue
+                    # Swap players if position is specified
+                    if pos == "RIGHT":
+                        swap_players(replay)
+                        swap_set_wins(replay)
+                        swap_set_icons(replay)
 
-                    p2 = replay["p2"]
-                    p2_steam = replay["p2_steamid64"]
-                    p2_character = replay["p2_character_id"]
-
-                    replay["p1"] = p2
-                    replay["p1_steamid64"] = p2_steam
-                    replay["p1_character_id"] = p2_character
-
-                    replay["p2"] = p1
-                    replay["p2_steamid64"] = p1_steam
-                    replay["p2_character_id"] = p1_character
+    return replays
 
 
 def chunks(lst, n):
@@ -72,7 +138,6 @@ def chunks(lst, n):
 
 
 def friendly_file(replay: typing.Type[Replay]) -> tuple[str, str]:
-
     p1 = replay.p1
     p2 = replay.p2
 
@@ -296,7 +361,6 @@ def read_data(data: typing.Union[bytearray, bytes]) -> typing.Dict:
 
 
 def process_network_response(response: flask.wrappers.Response) -> Union[Union[dict[str, str], dict[str, str]], Any]:
-
     try:
         if response.is_json:
             data = response.get_json()
