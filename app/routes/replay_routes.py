@@ -9,7 +9,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.utils.cache import cache
 from app.utils.constants import CHARACTERS
-from app.utils.helpers import require_api_key, get_character_icon, clear_cache_on_success
+from app.utils.helpers import require_api_key, get_character_icon, clear_cache_on_success, order_by_criteria_replays
 from app.utils.helpers import collapse_replays_into_sets
 from app.core import limiter
 from app import replay_controller as controller
@@ -60,6 +60,8 @@ async def get_replays_into_sets():
     replay_cache = cache
     cached_data = replay_cache.get(params)
     params.pop("page", None)
+    pos = request.cookies.get('pos', '')
+    outcome = request.cookies.get('outcome', '')
     validate_replay_query(params, ReplayQuery)
 
     if cached_data:
@@ -83,6 +85,10 @@ async def get_replays_into_sets():
 
     replays = collapse_replays_into_sets(replays)
     replays.sort(key=lambda r: r["recorded_at"], reverse=True)
+
+    if outcome or pos:
+        search = [params[key] for key in params]
+        order_by_criteria_replays(replays, pos=pos, outcome=outcome, search=search)
 
     return jsonify(replays=replays, current_page=page, max_page=max_page)
 
