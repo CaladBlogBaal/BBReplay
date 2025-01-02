@@ -108,7 +108,7 @@ def order_by_criteria_replays(replays: typing.List[dict], **options: typing.Dict
 
                 if "p2" in key:
                     # delete replay
-                    if set_outcome(replay, "p2") != outcome:
+                    if set_outcome(replay, "p2") != outcome and outcome:
                         del replays[i]
                         continue
                     # Swap players if position is specified
@@ -119,7 +119,7 @@ def order_by_criteria_replays(replays: typing.List[dict], **options: typing.Dict
 
                 elif "p1" in key:
                     # delete replay
-                    if set_outcome(replay, "p1") != outcome:
+                    if set_outcome(replay, "p1") != outcome and outcome:
                         del replays[i]
                         continue
                     # Swap players if position is specified
