@@ -2,7 +2,8 @@ import logging
 import typing
 
 from io import BytesIO
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import AsyncGenerator
 
 import sqlalchemy
 from sqlalchemy import func, extract, or_, and_, desc, case, cast
@@ -12,6 +13,7 @@ from sqlalchemy.exc import NoResultFound
 from app import db_manager
 from app.models.replay import Replay
 from app.schema import ReplayCreate, ReplayUpdate
+from app.services.bbcfim_service import BBCFIM
 from app.utils.helpers import friendly_file
 
 logger = logging.getLogger(__name__)
@@ -47,15 +49,15 @@ class ReplayService:
     def acquire(self):
         return _ContextDBAcquire(self.db_manager)
 
-    async def get_replay(self, replay_id: int) -> Replay:
+    async def get_replay(self, filename: str) -> Replay:
 
         async with self.acquire() as session:
-            replay = await session.get(Replay, replay_id)
+            replay = await session.get(Replay, filename)
 
             if not replay:
                 raise NoResultFound("Replay not found")
 
-            logger.info(f"Returned replay with ID: {replay_id}")
+            logger.info(f"Returned replay with ID: {filename}")
             return replay
 
     def build_conditions(self, model, key, value, use_or=True):
@@ -111,7 +113,7 @@ class ReplayService:
                 result = await session.execute(count_query)
                 total_replays = result.scalar()
             else:
-                result = await session.execute(select(func.count(Replay.replay_id)))
+                result = await session.execute(select(func.count(Replay.filename)))
                 total_replays = result.scalar()  # Get the total count of replays
 
             return total_replays
@@ -125,7 +127,7 @@ class ReplayService:
     @staticmethod
     async def _stream_replays(query, session) -> typing.AsyncGenerator[Replay, None]:
         # Peek at the first result to check if there are any results
-        query = query.order_by(desc(Replay.recorded_at))
+        query = query.order_by(desc(Replay.datetime_))
         first_replay = await (await session.stream_scalars(query)).first()
         if not first_replay:
             raise NoResultFound("Replay(s) not found")
@@ -136,7 +138,7 @@ class ReplayService:
     async def get_total_replays(self):
         async with self.acquire() as session:
             logger.info(f"Returned total count of replays.")
-            return (await session.execute(select(func.count(Replay.replay_id)))).scalar()
+            return (await session.execute(select(func.count(Replay.filename)))).scalar()
 
     async def get_total_unique_players(self):
         async with self.acquire() as session:
@@ -150,10 +152,10 @@ class ReplayService:
     async def get_total_replays_per_character(self):
         async with self.acquire() as session:
             query = select(
-                func.count(Replay.p1_character_id == Replay.p2_character_id).label("total"),
-                Replay.p1_character_id.label("character_id")
+                func.count(Replay.p1_toon == Replay.p2_toon).label("total"),
+                Replay.p1_toon.label("character_id")
             ).group_by(
-                Replay.p1_character_id
+                Replay.p1_toon
             ).order_by(func.count().desc())
 
             results = (await session.execute(query)).fetchall()
@@ -165,19 +167,19 @@ class ReplayService:
         async with self.acquire() as session:
             matchup_query = (
                 select(
-                    func.least(Replay.p1_character_id, Replay.p2_character_id).label("character_1_id"),
-                    func.greatest(Replay.p1_character_id, Replay.p2_character_id).label("character_2_id"),
+                    func.least(Replay.p1_toon, Replay.p2_toon).label("character_1_id"),
+                    func.greatest(Replay.p1_toon, Replay.p2_toon).label("character_2_id"),
                     func.count().label("matches_played"),
                     # Calculate win rates for each character by dividing their wins by total matches and converting that to a percentage
                     func.round(
                         (func.sum(
                             case(
 
-                                ((Replay.p1_character_id == func.least(Replay.p1_character_id,
-                                                                       Replay.p2_character_id)) & (
+                                ((Replay.p1_toon == func.least(Replay.p1_toon,
+                                                                       Replay.p2_toon)) & (
                                          Replay.winner == 0), 1),
-                                ((Replay.p2_character_id == func.least(Replay.p1_character_id,
-                                                                       Replay.p2_character_id)) & (
+                                ((Replay.p2_toon == func.least(Replay.p1_toon,
+                                                                       Replay.p2_toon)) & (
                                          Replay.winner == 1), 1)
                                 ,
                                 else_=0
@@ -189,11 +191,11 @@ class ReplayService:
                         (func.sum(
                             case(
 
-                                ((Replay.p1_character_id == func.greatest(Replay.p1_character_id,
-                                                                          Replay.p2_character_id)) & (
+                                ((Replay.p1_toon == func.greatest(Replay.p1_toon,
+                                                                          Replay.p2_toon)) & (
                                          Replay.winner == 0), 1),
-                                ((Replay.p2_character_id == func.greatest(Replay.p1_character_id,
-                                                                          Replay.p2_character_id)) & (
+                                ((Replay.p2_toon == func.greatest(Replay.p1_toon,
+                                                                          Replay.p2_toon)) & (
                                          Replay.winner == 1), 1)
                                 ,
                                 else_=0
@@ -202,15 +204,15 @@ class ReplayService:
                     ).label("p2_win_rate")
                 )
                 .group_by(
-                    func.least(Replay.p1_character_id, Replay.p2_character_id),
-                    func.greatest(Replay.p1_character_id, Replay.p2_character_id)
+                    func.least(Replay.p1_toon, Replay.p2_toon),
+                    func.greatest(Replay.p1_toon, Replay.p2_toon)
                 )
                 .order_by(func.count().desc())
             )
             if character_id:
                 matchup_query = matchup_query.where(
-                    or_(Replay.p1_character_id == character_id,
-                        Replay.p2_character_id == character_id))
+                    or_(Replay.p1_toon == character_id,
+                        Replay.p2_toon == character_id))
 
             results = (await session.execute(matchup_query)).fetchall()
             logger.info(f"Returned matchup statistics.")
@@ -219,20 +221,20 @@ class ReplayService:
     async def get_matchup_rarity(self):
         async with self.acquire() as session:
             # Subquery to calculate total replays
-            total_replays_subquery = select(func.count(Replay.replay_id)).scalar_subquery()
+            total_replays_subquery = select(func.count(Replay.filename)).scalar_subquery()
 
             matchup_rarity = (
                 select(
-                    func.least(Replay.p1_character_id, Replay.p2_character_id).label("character_1_id"),
-                    func.greatest(Replay.p1_character_id, Replay.p2_character_id).label("character_2_id"),
+                    func.least(Replay.p1_toon, Replay.p2_toon).label("character_1_id"),
+                    func.greatest(Replay.p1_toon, Replay.p2_toon).label("character_2_id"),
                     func.count().label("matchup_count"),
                     func.round(
                         (func.count() / total_replays_subquery)
                         * 100, 2).label("percentage")
                 )
                 .group_by(
-                    func.least(Replay.p1_character_id, Replay.p2_character_id),
-                    func.greatest(Replay.p1_character_id, Replay.p2_character_id)
+                    func.least(Replay.p1_toon, Replay.p2_toon),
+                    func.greatest(Replay.p1_toon, Replay.p2_toon)
                 )
                 .order_by("matchup_count")
             )
@@ -246,7 +248,7 @@ class ReplayService:
             # Subquery for player 1 statistics
             p1_query = (
                 select(
-                    Replay.p1_character_id.label("character_id"),
+                    Replay.p1_toon.label("character_id"),
                     func.count().label("matches_played"),
                     func.round(
                         func.avg(
@@ -259,13 +261,13 @@ class ReplayService:
                         ) * 100, 2
                     ).label("win_rate")
                 )
-                .group_by(Replay.p1_character_id)
+                .group_by(Replay.p1_toon)
             )
 
             # Subquery for player 2 statistics
             p2_query = (
                 select(
-                    Replay.p2_character_id.label("character_id"),
+                    Replay.p2_toon.label("character_id"),
                     func.count().label("matches_played"),
                     func.round(
                         func.avg(
@@ -277,7 +279,7 @@ class ReplayService:
                         ) * 100, 2
                     ).label("win_rate")
                 )
-                .group_by(Replay.p2_character_id)
+                .group_by(Replay.p2_toon)
             )
 
             # Combine both queries with UNION to get overall statistics
@@ -301,12 +303,21 @@ class ReplayService:
 
     async def get_all_replay_timestamps(self):
         async with self.acquire() as session:
-            query = select(Replay.recorded_at)
+            query = select(Replay.datetime_)
 
             async for replay in self._stream_replays(query, session):
                 yield replay
 
             logger.info(f"Returned all replay timestamps.")
+
+    async def get_all_filenames(self):
+        async with self.acquire() as session:
+            query = select(Replay.filename)
+
+            async for replay in self._stream_replays(query, session):
+                yield replay
+
+            logger.info(f"Returned all replay filenames.")
 
     async def get_replays(self, query_params: typing.Dict[str, typing.Union[int, str, bytes]],
                           per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
@@ -318,14 +329,14 @@ class ReplayService:
                 offset = (page - 1) * per_page
                 query = query.limit(per_page).offset(offset)
 
-            replay_ids = []
+            filenames = []
 
             async for replay in self._stream_replays(query, session):
                 yield replay
-                replay_ids.append(str(replay.replay_id))
+                filenames.append(str(replay.filename))
 
-            if replay_ids:
-                logger.info(f"Returned replay(s) with ID(s): {','.join(replay_ids)}")
+            if filenames:
+                logger.info(f"Returned replay(s) with ID(s): {','.join(filenames)}")
 
     async def get_all_replays(self, per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
         async with self.acquire() as session:
@@ -346,55 +357,60 @@ class ReplayService:
 
     async def create_replay(self, replay_create: ReplayCreate) -> Replay:
         new_replay = Replay(
-            replay=replay_create.replay,
-            recorded_at=replay_create.recorded_at,
+            filename=replay_create.filename,
+            datetime_=replay_create.datetime_,
+            upload_datetime_=datetime.now(),
             winner=replay_create.winner,
             p1=replay_create.p1,
             p2=replay_create.p2,
-            p1_character_id=replay_create.p1_character_id,
-            p2_character_id=replay_create.p2_character_id,
+            p1_toon=replay_create.p1_toon,
+            p2_toon=replay_create.p2_toon,
             recorder=replay_create.recorder,
-            filename=replay_create.filename,
             p1_steamid64=replay_create.p1_steamid64,
             p2_steamid64=replay_create.p2_steamid64,
-            recorder_steamid64=replay_create.recorder_steamid64,
-            upload_date=datetime.now(timezone.utc)
+            recorder_steamid64=replay_create.recorder_steamid64
         )
 
         async with self.acquire() as session:
             session.add(new_replay)
             await session.commit()
             await session.refresh(new_replay)
-            logger.info(f"Created new replay with ID: {new_replay.replay_id}")
+            logger.info(f"Created new replay with ID: {new_replay.filename}")
             return new_replay
 
-    async def update_replay(self, replay_id: int, replay_update: ReplayUpdate) -> Replay:
+    async def update_replay(self, filename: str, replay_update: ReplayUpdate) -> Replay:
         async with self.acquire() as session:
-            replay = await anext(self.get_replays({"replay_id": replay_id}))
+            replay = await anext(self.get_replays({"filename": filename}))
 
             for key, value in replay_update.dict(exclude_unset=True).items():
                 setattr(replay, key, value)
 
             await session.commit()
             await session.refresh(replay)
-            logger.info(f"Updated replay with ID: {replay.id}")
+            logger.info(f"Updated replay with ID: {replay.filename}")
             return replay
 
-    async def delete_replay(self, replay_id: int) -> None:
+    async def delete_replay(self, filename: str) -> None:
         async with self.acquire() as session:
-            replay = await self.get_replay(replay_id)
+            replay = await self.get_replay(filename)
             await session.delete(replay)
             await session.commit()
             logger.info(f"Deleted user with ID: {replay.id}")
 
-    async def load_replay(self, replay_id: int) -> tuple[BytesIO, str, str]:
-        replay = await self.get_replay(replay_id)
-        filename, mimetype = friendly_file(replay)
-        buffer = BytesIO(replay.replay)
-        buffer.seek(0)
-        buffer.name = replay.filename
-        return buffer, filename, mimetype
+    async def load_replay(self, filename: str) -> tuple[BytesIO, str, str]:
+        # going to change this later
+        return await BBCFIM().download_file(filename)
 
-    async def load_replays(self, replay_ids: typing.Collection[int]) -> typing.Generator[BytesIO, str, str]:
-        for ri in replay_ids:
-            yield await self.load_replay(ri)
+        # replay = await self.get_replay(filename)
+        # filename, mimetype = friendly_file(replay)
+        # buffer = BytesIO(replay.replay)
+        # buffer.seek(0)
+        # buffer.name = replay.filename
+        # return buffer, filename, mimetype
+
+    async def load_replays(self, filenames: typing.List[str]) -> AsyncGenerator[typing.Union[str, BytesIO], None]:
+        # going to change this later
+        return BBCFIM().download_files(filenames)
+
+        # for fn in filenames:
+        #     yield await self.load_replay(fn)

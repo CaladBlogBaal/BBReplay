@@ -1,7 +1,7 @@
 import re
 import typing
 from datetime import datetime
-from typing import Union, Dict, Any, Tuple, List
+from typing import Union, Dict, Any
 
 import pytz
 from dateutil import parser
@@ -14,17 +14,15 @@ from app.schema import ReplayQuery
 def cast_attributes_to_types(replay_instance: typing.Union[Replay, ReplayQuery, dict]):
     # Type hints dictionary mapping attribute names to their type hints
     type_hints = {
-        'replay_id': int,
+        'filename': str,
         'replay': bytes,
         'p1': str,
-        'p1_character_id': int,
+        'p1_toon': int,
         'p2': str,
-        'p2_character_id': int,
+        'p2_toon': int,
         'recorder': str,
         'winner': int,
-        'filename': str,
-        'recorded_at': parse_date_string,
-        'upload_date': parse_date_string,
+        'datetime_': parse_date_string,
         'p1_steamid64': int,
         'p2_steamid64': int,
         'recorder_steamid64': int
@@ -56,6 +54,7 @@ def parse_date_string(date_object: typing.Union[str, datetime, typing.Tuple[Any]
         return localized_datetime
     except (ValueError, TypeError):
         if isinstance(date_object, datetime):
+            # dt_ts = datetime.fromtimestamp(date_object.timestamp(), tz=tz.utc)
             return date_object
 
         elif isinstance(date_object, tuple) or isinstance(date_object, list):

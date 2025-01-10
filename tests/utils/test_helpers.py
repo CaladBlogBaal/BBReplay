@@ -17,10 +17,10 @@ def test_total_up_wins():
     assert p2wins == 20
     assert p1wins == 13
 
-
+@pytest.mark.asyncio
 @pytest.mark.unit
-def test_collapse_replays_into_sets():
-    replays = [replay.to_dict(include_replay_data=False)
+async def test_collapse_replays_into_sets():
+    replays = [await replay.to_dict(include_replay_data=False)
                for replay in generate_mock_replays_from_data(REPLAYS)]
     replays = collapse_replays_into_sets(replays)
 
@@ -30,7 +30,9 @@ def test_collapse_replays_into_sets():
 @pytest.mark.unit
 def test_order_replays_by_options():
     replays = REPLAYS_SET["replays"]
+
     order_by_criteria_replays(replays, pos="LEFT", search=[76561198079498381])
+
     assert all(replay["p1"] == "Dark Souls II" for replay in replays)
     order_by_criteria_replays(replays, pos="RIGHT", search=["Dark"])
     assert all(replay["p2"] == "Dark Souls II" for replay in replays)

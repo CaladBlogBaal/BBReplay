@@ -1,10 +1,10 @@
 import asyncio
-from flask.cli import FlaskGroup
+from quart.cli import QuartGroup
 from app import create_app, init_models
 
 app = create_app()
 
-cli = FlaskGroup(app)
+cli = QuartGroup(app)
 
 
 @cli.command()

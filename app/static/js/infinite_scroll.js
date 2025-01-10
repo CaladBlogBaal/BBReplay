@@ -132,20 +132,20 @@ const replayLoader = {
 
     const downloadRow1 = createElementWithClass('div', 'row no-gutters');
     const downloadButton1 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
-    downloadButton1.href = `/download?replay_id=${replay.replay_id}`;
+    downloadButton1.href = `/download?filename=${replay.filename}`;
     downloadButton1.textContent = 'Download Game';
     downloadRow1.appendChild(downloadButton1);
 
     const downloadRow2 = createElementWithClass('div', 'row no-gutters');
     const downloadButton2 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
-    downloadButton2.href = `/download-set?replay_ids=${replay.set.join(',')}`;
+    downloadButton2.href = `/download-set?filenames=${replay.set.join(',')}`;
     downloadButton2.textContent = 'Download Set';
     downloadRow2.appendChild(downloadButton2);
 
     const dateRow = createElementWithClass('div', 'row my-1 no-gutters');
     const dateCol = createElementWithClass('div', 'col');
     const dateSpan = createElementWithClass('span', 'main-font caption');
-    const utcDateString = replay.recorded_at;
+    const utcDateString = replay.datetime_;
     // Create a Date object using the UTC date string
     const date = new Date(utcDateString);
     const options = {

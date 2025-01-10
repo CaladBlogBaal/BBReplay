@@ -11,15 +11,15 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Union, Any
 
-import flask
+import quart
 
-from flask import request, abort, current_app, Flask
+from quart import request, abort, current_app, Quart
 
 from app.models.replay import Replay
 from app.utils.cache import cache
 from app.utils.constants import CHARACTERS
 
-app = Flask("app")
+app = Quart("app")
 # Normalize time zones to a common one (UTC in this case)
 UTC_TIMEZONE = pytz.utc
 
@@ -56,19 +56,19 @@ def swap_players(replay):
 
     p1 = replay["p1"]
     p1_steam = replay["p1_steamid64"]
-    p1_character = replay["p1_character_id"]
+    p1_character = replay["p1_toon"]
 
     p2 = replay["p2"]
     p2_steam = replay["p2_steamid64"]
-    p2_character = replay["p2_character_id"]
+    p2_character = replay["p2_toon"]
 
     replay["p1"] = p2
     replay["p1_steamid64"] = p2_steam
-    replay["p1_character_id"] = p2_character
+    replay["p1_toon"] = p2_character
 
     replay["p2"] = p1
     replay["p2_steamid64"] = p1_steam
-    replay["p2_character_id"] = p1_character
+    replay["p2_toon"] = p1_character
 
 
 def set_outcome(replay, player_side: str) -> str:
@@ -152,12 +152,12 @@ def chunks(lst, n):
         yield lst[i:i + n]
 
 
-def friendly_file(replay: typing.Type[Replay]) -> tuple[str, str]:
+def friendly_file(replay: Replay) -> tuple[str, str]:
     p1 = replay.p1
     p2 = replay.p2
 
-    p1char_name = CHARACTERS[replay.p1_character_id].lower()
-    p2char_name = CHARACTERS[replay.p2_character_id].lower()
+    p1char_name = CHARACTERS[replay.p1_toon].lower()
+    p2char_name = CHARACTERS[replay.p2_toon].lower()
 
     filename = f"{p1}({p1char_name})_{p2}({p2char_name}).dat"
     return filename, "application/octet-stream"
@@ -178,7 +178,7 @@ def within_10_minutes(date1: datetime, date2: datetime) -> bool:
 
 
 def aggregate_replays(replays: typing.List[Replay]) -> list[list[Replay]]:
-    sorted_replays = sorted(replays, key=lambda r: read_date(r["recorded_at"]).astimezone(UTC_TIMEZONE))
+    sorted_replays = sorted(replays, key=lambda r: read_date(r["datetime_"]).astimezone(UTC_TIMEZONE))
 
     sets = []
     current_set = []
@@ -188,10 +188,10 @@ def aggregate_replays(replays: typing.List[Replay]) -> list[list[Replay]]:
 
         if (
                 match["p1"] == previous_match["p1"] and
-                match["p1_character_id"] == previous_match["p1_character_id"] and
+                match["p1_toon"] == previous_match["p1_toon"] and
                 match["p2"] == previous_match["p2"] and
-                match["p2_character_id"] == previous_match["p2_character_id"] and
-                within_10_minutes(match["recorded_at"], previous_match["recorded_at"])
+                match["p2_toon"] == previous_match["p2_toon"] and
+                within_10_minutes(match["datetime_"], previous_match["datetime_"])
         ):
             current_set.append(match)
         else:
@@ -220,7 +220,7 @@ def total_up_wins(row: typing.List[Replay]) -> tuple[int, int]:
 
 def collapse_aggregated_replays(og_replays: typing.List[typing.List[Replay]]) -> list[Replay]:
     replays = [
-        {**row[0], "set": [r["replay_id"] for r in row], "p1wins": p1wins, "p2wins": p2wins}
+        {**row[0], "set": [r["filename"] for r in row], "p1wins": p1wins, "p2wins": p2wins}
         for row in og_replays
         for p1wins, p2wins in [total_up_wins(row)]
     ]
@@ -264,8 +264,8 @@ def get_character_icon(search: str) -> Union[bytes, str]:
 
 
 def assign_icons(replay: dict):
-    replay["p1icon"] = get_character_icon(CHARACTERS[replay["p1_character_id"]])
-    replay["p2icon"] = get_character_icon(CHARACTERS[replay["p2_character_id"]])
+    replay["p1icon"] = get_character_icon(CHARACTERS[replay["p1_toon"]])
+    replay["p2icon"] = get_character_icon(CHARACTERS[replay["p2_toon"]])
 
 
 def assign_wins(replay: dict):
@@ -301,8 +301,8 @@ def parse_replay_data(data: typing.Union[bytearray, bytes]) -> typing.Dict:
 
     bytes_metadata["replay"] = data
 
-    # Extract and unpack "recorded_at" as a string of 24 bytes
-    bytes_metadata["recorded_at"] = struct.unpack_from("24s", data, 0x38)[0]
+    # Extract and unpack "datetime_" as a string of 24 bytes
+    bytes_metadata["datetime_"] = struct.unpack_from("24s", data, 0x38)[0]
 
     # Extract and unpack "winner" as a single byte (unsigned char)
     bytes_metadata["winner"] = struct.unpack_from("B", data, 0x98)[0]
@@ -311,9 +311,9 @@ def parse_replay_data(data: typing.Union[bytearray, bytes]) -> typing.Dict:
     bytes_metadata["p1"] = struct.unpack_from("36s", data, 0xA4)[0]
     bytes_metadata["p2"] = struct.unpack_from("36s", data, 0x16E)[0]
 
-    # Extract and unpack "p1_character_id" and "p2_character_id" as  a 4-byte sequence
-    bytes_metadata["p1_character_id"] = struct.unpack_from("4s", data, 0x230)[0]
-    bytes_metadata["p2_character_id"] = struct.unpack_from("4s", data, 0x234)[0]
+    # Extract and unpack "p1_toon" and "p2_toon" as  a 4-byte sequence
+    bytes_metadata["p1_toon"] = struct.unpack_from("4s", data, 0x230)[0]
+    bytes_metadata["p2_toon"] = struct.unpack_from("4s", data, 0x234)[0]
     # Extract and unpack "recorder" as a string of 36 bytes
     bytes_metadata["recorder"] = struct.unpack_from("36s", data, 0x240)[0]
 
@@ -332,8 +332,8 @@ def get_hashed_filename(data: typing.Union[bytearray, bytes, dict]) -> str:
     if not isinstance(data, dict):
         data = parse_replay_data(data)
 
-    bytes_to_hash = (data["p1_character_id"] +
-                     data["p2_character_id"] +
+    bytes_to_hash = (data["p1_toon"] +
+                     data["p2_toon"] +
                      data["p1_steamid64"] +
                      data["p2_steamid64"] +
                      data["replay_inputs"])
@@ -351,17 +351,17 @@ def get_hashed_filename(data: typing.Union[bytearray, bytes, dict]) -> str:
 
 def decode_replay(data: dict) -> None:
     data["filename"] = get_hashed_filename(data)
-    data["recorded_at"] = data["recorded_at"].decode("utf-8")
+    data["datetime_"] = data["datetime_"].decode("utf-8")
     data["p1"] = data["p1"].decode("utf-16").split("\x00")[0]
     data["p2"] = data["p2"].decode("utf-16").split("\x00")[0]
-    data["p1_character_id"] = int.from_bytes(data["p1_character_id"], byteorder="little")
-    data["p2_character_id"] = int.from_bytes(data["p2_character_id"], byteorder="little")
+    data["p1_toon"] = int.from_bytes(data["p1_toon"], byteorder="little")
+    data["p2_toon"] = int.from_bytes(data["p2_toon"], byteorder="little")
     data["recorder"] = data["recorder"].decode("utf-16").split("\x00")[0]
 
     try:
-        data["recorded_at"] = datetime.strptime(data["recorded_at"], "%a, %d %b %Y %H:%M:%S %Z")
+        data["datetime_"] = datetime.strptime(data["datetime_"], "%a, %d %b %Y %H:%M:%S %Z")
     except ValueError:
-        data["recorded_at"] = datetime.strptime(data["recorded_at"], "%a %b %d %H:%M:%S %Y")
+        data["datetime_"] = datetime.strptime(data["datetime_"], "%a %b %d %H:%M:%S %Y")
 
     data["p1_steamid64"] = int.from_bytes(data["p1_steamid64"], byteorder="little")
     data["p2_steamid64"] = int.from_bytes(data["p2_steamid64"], byteorder="little")
@@ -375,7 +375,7 @@ def read_data(data: typing.Union[bytearray, bytes]) -> typing.Dict:
     return data
 
 
-def process_network_response(response: flask.wrappers.Response) -> Union[Union[dict[str, str], dict[str, str]], Any]:
+def process_network_response(response: quart.wrappers.Response) -> Union[Union[dict[str, str], dict[str, str]], Any]:
     try:
         if response.is_json:
             data = response.get_json()

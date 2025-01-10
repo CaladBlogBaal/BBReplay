@@ -3,19 +3,19 @@ import typing
 from io import BytesIO
 
 from zipfile import ZipFile
-from typing import Union, Dict, Optional, Any
+from typing import Union, Dict, Optional
 
 import sqlalchemy
 from sqlalchemy.exc import NoResultFound
 
-from flask import request
+from quart import request
 
 from app.schema import ReplayCreate, ReplayUpdate, ReplayQuery
 from app.models.replay import Replay
 from app.controllers.validation import validate_model_data, cast_attributes_to_types
 from app.services.replay_service import ReplayService
 
-from app.utils.helpers import read_data
+from app.utils.helpers import read_data, friendly_file
 from app.utils.constants import CHARACTERS
 
 
@@ -108,6 +108,9 @@ class ReplayController:
     async def get_all_replay_timestamps(self):
         return self.service.get_all_replay_timestamps()
 
+    async def get_all_filenames(self):
+        return self.service.get_all_filenames()
+
     async def get_replays(self, query_params: Dict[str, Union[int, str, bytes]] = None, per_page=None, page=1) \
             -> typing.AsyncGenerator[Replay, None]:
         if query_params:
@@ -130,60 +133,60 @@ class ReplayController:
             return
         return replay
 
-    async def update_replay(self, replay_id: int) -> Optional[Union[dict[str, str], Replay]]:
-        data = request.get_json()
+    async def update_replay(self, filename: str) -> Optional[Union[dict[str, str], Replay]]:
+        data = await request.get_json()
         replay_update = ReplayUpdate(**data)
 
         try:
-            replay = await self.service.update_replay(replay_id, replay_update)
+            replay = await self.service.update_replay(filename, replay_update)
             return replay
         except NoResultFound:
             return
 
-    async def delete_replay(self, replay_id: int) -> bool:
+    async def delete_replay(self, filename: str) -> bool:
 
         try:
-            await self.service.delete_replay(replay_id)
+            await self.service.delete_replay(filename)
             return True
         except NoResultFound:
             return False
 
-    async def download_replay(self, replay_id: int) -> Optional[tuple[BytesIO, str, str]]:
+    async def download_replay(self, filename: str) -> Optional[tuple[BytesIO, str, str]]:
         try:
-            data, filename, mimetype = await self.service.load_replay(replay_id)
+            data, filename, mimetype = await self.service.load_replay(filename)
             return data, filename, mimetype
         except NoResultFound:
             return
 
-    async def download_replays(self, replay_ids: typing.Collection[int]) -> Optional[tuple[BytesIO, str, str]]:
+    async def download_replays(self, filenames: typing.List[str]) -> Optional[tuple[BytesIO, str, str]]:
+        # to change later
         replays = []
 
         with contextlib.suppress(NoResultFound):
-            async for replay in self.service.load_replays(replay_ids):
+            async for replay in await self.service.load_replays(filenames):
                 replays.append(replay)
 
             if not replays:
                 return
 
-            _, base_filename, _ = replays[0]
+            _, filename, _ = replays[0]
+            base_filename, archive_mimetype = friendly_file(await anext(self.get_replay({"filename": filename})))
             stream = BytesIO()
-            archive_mimetype = "application/octet-stream"
+
+            filename = base_filename.split("(")
+            middle = filename[1].split("_")
+            p1_initials = filename[0][0] + filename[0][-1]
+            p1_toon_initials = middle[0][0] + middle[0][-2]
+            p2_initials = middle[1][0] + middle[1][-1]
+            p2_toon_initials = filename[2][0] + filename[2][-6]
+            filename = f"{p1_initials}{p1_toon_initials}{p2_initials}{p2_toon_initials}.dat".lower()
+
 
             with ZipFile(stream, "w") as zf:
                 for i, replay in enumerate(replays):
-                    data, filename, mimetype = replay
-
-                    filename = filename.split("(")
-                    middle = filename[1].split("_")
-
+                    data, _, mimetype = replay
                     extension = f"({i}).dat" if i > 0 else ".dat"
-                    p1_initials = filename[0][0] + filename[0][-1]
-                    p1_toon_initials = middle[0][0] + middle[0][-2]
-                    p2_initials = middle[1][0] + middle[1][-1]
-                    p2_toon_initials = filename[2][0] + filename[2][-6]
-                    filename = f"{p1_initials}_{p1_toon_initials}_{p2_initials}_{p2_toon_initials}{extension}".lower()
-
-                    zf.writestr(filename, data.getvalue())
+                    zf.writestr(filename.replace(".dat", extension), data.getvalue())
 
             stream.seek(0)
-            return stream, base_filename, archive_mimetype
+            return stream, base_filename.replace("dat", "zip"), archive_mimetype

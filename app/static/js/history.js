@@ -69,7 +69,7 @@ function populateFieldsWithParameters() {
 
     }
     for (const [key, value] of searchParams.entries()) {
-        if (key === 'recorded_at') {
+        if (key === 'datetime_') {
           const dates = JSON.parse(value);
           // Format the dates
           const formattedDates = formatDates(dates);
@@ -81,14 +81,14 @@ function populateFieldsWithParameters() {
             playerInput.value = value;
         } else if (key === 'p2') {
             playerInput2.value = value;
-        } // else if (key === 'p1_character_id') {
+        } // else if (key === 'p1_toon') {
           //  handleCharacterIcon(value,'characterDropdown', 'characterContainer');
-        //} else if (key === 'p2_character_id') {
+        //} else if (key === 'p2_toon') {
         //    handleCharacterIcon(value, 'characterDropdown2', 'characterContainer2');
        // }
     }
-    const value = searchParams.get('p1_character_id') || '';
-    const value2 = searchParams.get('p2_character_id') || '';
+    const value = searchParams.get('p1_toon') || '';
+    const value2 = searchParams.get('p2_toon') || '';
     handleCharacterIcon(value,'characterDropdown', 'characterContainer');
     handleCharacterIcon(value2, 'characterDropdown2', 'characterContainer2');
 }

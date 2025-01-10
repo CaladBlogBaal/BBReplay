@@ -1,8 +1,8 @@
-from flask_wtf import FlaskForm
+from quart_wtf import QuartForm
 from wtforms import SubmitField, SelectField
 
 
-class OptionForm(FlaskForm):
+class OptionForm(QuartForm):
     outcome = SelectField(u"Limit outcomes",
                           render_kw={"id": "outcome_select"},
                           choices=[("", "DEFAULT"), ("WON", "WON"), ("LOST", "LOST")])

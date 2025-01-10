@@ -2,7 +2,7 @@ FROM python:3.9-slim
 
 RUN apt-get update
 
-ENV DATABASE_URL=postgresql+asyncpg://postgres:AuraKingdom1@db:5432/replaydb
+ENV DATABASE_URL=mysql+asyncmy://username:password@host/database
 ENV API_KEY=...
 ENV SECRET_KEY=API_KEY
 

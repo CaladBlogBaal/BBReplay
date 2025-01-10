@@ -76,17 +76,17 @@ const replayManager = {
             const endDate = picker.endDate.format('MMMM D, YYYY');
             let dateRange = JSON.stringify([picker.startDate.format('DD/MM/YYYY'),
                                                   picker.endDate.format('DD/MM/YYYY')]);
-            if (self.previousValues['recorded_at'] !== dateRange) {
-                self.replayString.set('recorded_at', dateRange);
-                self.previousValues.recorded_at = dateRange
+            if (self.previousValues['datetime_'] !== dateRange) {
+                self.replayString.set('datetime_', dateRange);
+                self.previousValues.datetime_ = dateRange
                 self.loadNewReplays();
                 $(this).val(startDate + ' - ' + endDate);
             }
         });
 
         dateInput.on('cancel.daterangepicker', function() {
-            self.replayString.delete('recorded_at');
-            self.previousValues.recorded_at = null;
+            self.replayString.delete('datetime_');
+            self.previousValues.datetime_ = null;
             self.loadNewReplays();
             $(this).val('');
         });

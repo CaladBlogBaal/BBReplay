@@ -1,6 +1,6 @@
 from typing import Union
 
-from flask import Response
+from quart import Response
 
 from app.services import file_service
 

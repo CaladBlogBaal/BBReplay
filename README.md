@@ -20,52 +20,32 @@ This project uses Docker for containerization. Follow the steps below to set up 
 
 Build the Docker Image:
 ```shell
-docker build -t bbreplay .
+docker build -t bbreplay_external .
 ```
 Run Docker Compose:
 
 ```shell
-docker-compose -f compose.yaml up
+docker compose -f compose.yaml up
 ```
 Docker Compose File
 
 The **\`compose.yaml`** file defines the services required for the application:
 ```yaml
-
 services:
-  db:
-    image: postgres:latest
-    container_name: postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: AuraKingdom1
-      POSTGRES_DB: replaydb
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - my_network
   api:
     build:
       dockerfile: Dockerfile
       context: .
     ports:
       - "5000:5000"
-    depends_on:
-      - db
+    volumes:
+      - upload-files:/app/upload-files  # Docker volume for persistent storage
     networks:
       - my_network
-    restart: "always"
-  memcached:
-    container_name: memcached
-    image: memcached:latest
-    networks:
-      - my_network
-    ports:
-      - "11211:11211"
     restart: "always"
 
 volumes:
-  postgres_data:
+      - upload-files:/app/upload-files
 
 networks:
   my_network:
@@ -74,13 +54,12 @@ networks:
 The **\`Dockerfile`** specifies how the Docker image for the application is built:
 
 ```dockerfile
-
 FROM python:3.9-slim
 
 RUN apt-get update
 
-ENV DATABASE_URL=postgresql+asyncpg://postgres:AuraKingdom1@db:5432/replaydb
-ENV API_KEY=thunderiscute
+ENV DATABASE_URL=mysql+asyncmy://username:password@host/database
+ENV API_KEY=...
 ENV SECRET_KEY=API_KEY
 
 COPY requirements.txt /tmp/requirements.txt
@@ -88,9 +67,10 @@ RUN python -m pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
 COPY . .
 
-CMD ["python", "manage.py", "init-db"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app.wsgi:create_app()"]
+ENTRYPOINT ["/entrypoint.sh"]
 ```
 <a name="usage"></a>
 ## Usage
@@ -116,25 +96,29 @@ python manage.py init_db
 The following dependencies are specified for this project:
 
 ```plaintext
-asyncpg==0.29.0
-Flask[async]==3.0.3
-Flask_Limiter==3.7.0
-flask_wtf==1.2.1
+aiohttp==3.11.11
+asyncmy==0.2.10
 pydantic==2.7.1
 pydantic_settings==2.2.1
 python-dotenv==1.0.1
 python_dateutil==2.9.0.post0
 pytz==2024.1
 SQLAlchemy==2.0.30
+Hypercorn==0.17.3
+python-dateutil~=2.9.0.post0
+pytest-asyncio==0.25.2
+pydantic-settings~=2.2.1
+quart-rate-limiter==0.11.0
+quart-wtforms==1.0.3
+Quart==0.20.0
 WTForms==3.1.2
-gunicorn==22.0.0
-pymemcache==4.0.0
+pytest==8.3.3
 ```
 ## Configuration
 
 Configuration details can be managed through environment variables as defined in the `Dockerfile`:
 
-- **\`DATABASE_URL`**: The URL for the PostgreSQL database
+- **\`DATABASE_URL`**: The URL for the database
 - **\`API_KEY`**: An API key for application use
 - **\`SECRET_KEY`**: A secret key for security purposes
 
@@ -144,7 +128,13 @@ Configuration details can be managed through environment variables as defined in
 ### API Endpoints
 
 The routes are defined in routes/replay_routes.py
-#### 1. GET /api/replays
+#### 1. GET /api/filenames
+
+- Description: Returns the names of all files in the database.
+- Response:
+  - Returns JSON array of filenames.
+  
+#### 2. GET /api/replays
 
 - Description: Retrieve a list of all replays or filter replays based on query parameters.
 - Parameters:
@@ -152,21 +142,21 @@ The routes are defined in routes/replay_routes.py
 
 | query_params         | Type    | Description                                                           |
 |----------------------|---------|-----------------------------------------------------------------------|
-| `replay_id`          | Integer | Unique identifier for each replay.                                    |
+| `filename`           | Integer | Unique identifier for each replay.                                    |
 | `p1`                 | String  | Player 1's name.                                                      |
-| `p1_character_id`    | Integer | Character ID for Player 1, must be within the specified range. (0-35) |
+| `p1_toon`            | Integer | Character ID for Player 1, must be within the specified range. (0-35) |
 | `p2`                 | String  | Player 2's name.                                                      |
-| `p2_character_id`    | Integer | Character ID for Player 2, must be within the specified range. (0-35) |
+| `p2_toon`            | Integer | Character ID for Player 2, must be within the specified range. (0-35) |
 | `recorder`           | String  | Name of the person who recorded the replay.                           |
 | `p1_steamid64`       | Integer | Steam ID for Player 1.                                                |
 | `p2_steamid64`       | Integer | Steam ID for Player 2.                                                |
 | `recorder_steamid64` | Integer | Steam ID for the recorder.                                            |
-| `Include`            | Boolean | A flag for including replay binary.                                   |
+| `include`            | Boolean | A flag for including replay binary.                                   |
 
   - Response:
    Returns a JSON array containing replay data.
   
-#### 2. POST /api/replay
+#### 3. POST /api/replay
 
 - Description: Create a new replay.
 - Request Body:
@@ -174,41 +164,41 @@ The routes are defined in routes/replay_routes.py
 - Response:
   - Returns JSON data of the created replay.
 
-#### 3. GET /api/replay/<int:replay_id>
+#### 4. GET /api/replay/<str:filename>
 
 - Description: Retrieve a specific replay by its ID.
 - Parameters:
-   - replay_id: ID of the replay to retrieve. 
+   - filename: ID of the replay to retrieve. 
 - Response:
    - Returns JSON data of the specified replay.
 
-#### 4. PUT /api/replay/<int:replay_id>
+#### 5. PUT /api/replay/<str:filename>
 
 - Description: Update an existing replay.
 - Parameters:
-   - replay_id: ID of the replay to update.
+   - filename: ID of the replay to update.
 - Request Body:
    - JSON data containing attributes to update.
 - Response:
    - Returns JSON data of the updated replay.
 
-#### 5. DELETE /api/replay/<int:replay_id>
+#### 6. DELETE /api/replay/<str:filename>
 
 - Description: Delete a specific replay by its ID.
 - Parameters:
-   - replay_id: ID of the replay to delete.
+   - filename: ID of the replay to delete.
 - Response:
    - Returns a success message upon successful deletion.
 
-#### 6. GET /download
+#### 7. GET /download
 
 - Description: Download a specific replay file by its ID.
 - Parameters:
-   - replay_id: ID of the replay to download.
+   - filename: ID of the replay to download.
 - Response:
    - Returns the replay file as a downloadable attachment.
 
-#### 7. POST /download-set
+#### 8. POST /download-set
 
 - Description: Download multiple replays as a compressed ZIP file.
 - Request Body:
