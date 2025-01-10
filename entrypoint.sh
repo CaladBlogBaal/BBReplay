@@ -5,4 +5,4 @@ set -e
 python manage.py init-db
 
 # Start the hypercorn server
-exec hypercorn --bind 0.0.0.0:5000 "app.wsgi:create_app()"
+exec hypercorn --bind 0.0.0.0:5000 "app.asgi:create_app()"
