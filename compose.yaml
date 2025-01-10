@@ -6,13 +6,10 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - upload-files:/app/upload-files  # Docker volume for persistent storag
+      - ./upload-files:/app/upload-files  # local directory for persistent storage
     networks:
       - my_network
     restart: "always"
-
-volumes:
-      - upload-files:/app/upload-files
 
 networks:
   my_network:
