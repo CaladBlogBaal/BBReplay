@@ -63,7 +63,7 @@ async def get_replays_into_sets():
     if "p1_character_id" in params:
         params["p1_toon"] = params.pop("p1_character_id")
 
-    elif "p2_character_id" in params:
+    if "p2_character_id" in params:
         params["p2_toon"] = params.pop("p2_character_id")
 
     params["page"] = str(page)
