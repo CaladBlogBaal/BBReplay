@@ -31,7 +31,7 @@ async def upload():
     if await form.validate_on_submit():
         for file in form.files.data:
             file = file
-            data = await file.read()
+            data = file.read()
             try:
                 replay = await file_controller.upload_file("1.dat", data)
 
