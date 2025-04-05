@@ -140,18 +140,19 @@ The routes are defined in routes/replay_routes.py
 - Parameters:
   - query_params (optional):
 
-| query_params         | Type    | Description                                                           |
-|----------------------|---------|-----------------------------------------------------------------------|
-| `filename`           | Integer | Unique identifier for each replay.                                    |
-| `p1`                 | String  | Player 1's name.                                                      |
-| `p1_toon`            | Integer | Character ID for Player 1, must be within the specified range. (0-35) |
-| `p2`                 | String  | Player 2's name.                                                      |
-| `p2_toon`            | Integer | Character ID for Player 2, must be within the specified range. (0-35) |
-| `recorder`           | String  | Name of the person who recorded the replay.                           |
-| `p1_steamid64`       | Integer | Steam ID for Player 1.                                                |
-| `p2_steamid64`       | Integer | Steam ID for Player 2.                                                |
-| `recorder_steamid64` | Integer | Steam ID for the recorder.                                            |
-| `include`            | Boolean | A flag for including replay binary.                                   |
+| query_params         | Type    | Description                                                                                     |
+|----------------------|---------|-------------------------------------------------------------------------------------------------|
+| `filename`           | Integer | Unique identifier for each replay.                                                              |
+| `p1`                 | String  | Player 1's name.                                                                                |
+| `p1_toon`            | Integer | Character ID for Player 1, must be within the specified range. (0-35)                           |
+| `p2`                 | String  | Player 2's name.                                                                                |
+| `p2_toon`            | Integer | Character ID for Player 2, must be within the specified range. (0-35)                           |
+| `recorder`           | String  | Name of the person who recorded the replay.                                                     |
+| `p1_steamid64`       | Integer | Steam ID for Player 1.                                                                          |
+| `p2_steamid64`       | Integer | Steam ID for Player 2.                                                                          |
+| `recorder_steamid64` | Integer | Steam ID for the recorder.                                                                      |
+| `include`            | Boolean | A flag for including replay binary.                                                             |
+| `strict_side"`       | Boolean | A flag to decide to greedily ( check both sides ) for replays, default behaviour is not greedy. |
 
   - Response:
    Returns a JSON array containing replay data.
