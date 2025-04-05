@@ -11,7 +11,8 @@ from sqlalchemy.exc import NoResultFound
 from app.services.bbcfim_service import BBCFIM
 from app.utils.cache import cache
 from app.utils.constants import CHARACTERS
-from app.utils.helpers import require_api_key, get_character_icon, clear_cache_on_success, order_by_criteria_replays
+from app.utils.helpers import require_api_key, get_character_icon, clear_cache_on_success, order_by_criteria_replays, \
+    parse_bool
 from app.utils.helpers import collapse_replays_into_sets
 from app import replay_controller as controller
 from app.schema import ReplayQuery
@@ -66,7 +67,16 @@ async def get_replays_into_sets():
     if "p2_character_id" in params:
         params["p2_toon"] = params.pop("p2_character_id")
 
+    if "strict_side" in params:
+        try:
+            strict_side = parse_bool(params["strict_side"])
+        except ValueError:
+            strict_side = False
+    else:
+        strict_side = False
+
     params["page"] = str(page)
+    params["strict_side"]  = strict_side
     replay_cache = cache
     cached_data = replay_cache.get(params)
     params.pop("page", None)
@@ -126,12 +136,23 @@ async def get_all_filenames():
 @rate_limit(2, timedelta(seconds=1))
 async def get_replays_api():
     query_params = request.args.to_dict()
-    validate_replay_query(query_params, ReplayQuery)
+
     for key in query_params:
         try:
             query_params[key] = int(query_params[key])
         except ValueError:
             pass  # Keep as is if it cannot be converted to int
+
+    if "strict_side" in query_params:
+        try:
+            strict_side = parse_bool(query_params["strict_side"])
+        except ValueError:
+            strict_side = True
+    else:
+        strict_side = True
+
+    query_params["strict_side"]  = strict_side
+
 
     limit = 10000
     per_page = query_params.pop("per_page", 100)
@@ -146,6 +167,7 @@ async def get_replays_api():
     if check:
         return check
 
+    validate_replay_query(query_params, ReplayQuery)
     try:
         replays = [await replay.to_dict(include_replay_data=bool(include))
                    async for replay in controller.get_replays(query_params, per_page=per_page, page=page)]

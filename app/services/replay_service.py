@@ -14,7 +14,6 @@ from app import db_manager
 from app.models.replay import Replay
 from app.schema import ReplayCreate, ReplayUpdate
 from app.services.bbcfim_service import BBCFIM
-from app.utils.helpers import friendly_file
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +64,7 @@ class ReplayService:
 
         if isinstance(value, str):
             value = value.strip().lower()
-            if key.startswith("p"):
-                p1 = key.replace("2", "1")
-                p2 = p1.replace("1", "2")
-                conditions.append(func.lower(getattr(model, p1)).like(f"%{value}%"))
-                conditions.append(func.lower(getattr(model, p2)).like(f"%{value}%"))
-            else:
-                conditions.append(func.lower(getattr(model, key)).like(f"%{value}%"))
+            conditions.append(func.lower(getattr(model, key)).like(f"%{value}%"))
 
         elif isinstance(value, datetime):
             day_condition = extract("day", getattr(model, key)) == value.day
@@ -85,13 +78,7 @@ class ReplayService:
             conditions.append(getattr(model, key).between(start, end))
 
         else:
-            if key.startswith("p"):
-                p1 = key.replace("2", "1")
-                p2 = p1.replace("1", "2")
-                conditions.append(getattr(model, p1) == value)
-                conditions.append(getattr(model, p2) == value)
-            else:
-                conditions.append(getattr(model, key) == value)
+            conditions.append(getattr(model, key) == value)
 
         if use_or:
             return or_(*conditions)
@@ -99,10 +86,83 @@ class ReplayService:
             return and_(*conditions)
 
     def build_query(self, model, query_params, use_or=True):
+        # not mutating the original dictionary
+        params_copy = query_params.copy()
+        strict_side = params_copy.pop("strict_side", True)
         query = select(model)
-        for key, value in query_params.items():
-            condition = self.build_conditions(model, key, value, use_or=use_or)
-            query = query.where(condition)
+        conditions = []
+        used_suffixes = set()
+        # Map normalized -> original key (to undo later)
+        normalized_map = {}
+        normalized_params = {}
+
+        # Categorize parameters into p1, p2, and others in one pass
+        p1_fields = {}
+        p2_fields = {}
+        other_params = {}
+
+        for key, value in params_copy.items():
+            if key == "p1":
+                nk = "p1_name"
+            elif key == "p2":
+                nk = "p2_name"
+            else:
+                nk = key
+            normalized_map[nk] = key  # so we can map back later
+            normalized_params[nk] = value
+
+            # Split into p1, p2, or other
+            if nk.startswith("p1"):
+                p1_fields[nk] = value
+            elif nk.startswith("p2"):
+                p2_fields[nk] = value
+            else:
+                other_params[nk] = value
+
+        for key1, val1 in p1_fields.items():
+            suffix = key1[3:]
+            key2 = f"p2_{suffix}"
+            # Handle flippable fields: if both p1_x and p2_x exist
+            if key2 in p2_fields:
+                val2 = p2_fields[key2]
+                orig_key1 = normalized_map[key1]
+                orig_key2 = normalized_map[key2]
+
+                conditions.append(or_(
+                    and_(getattr(model, orig_key1) == val1, getattr(model, orig_key2) == val2),
+                    and_(getattr(model, orig_key1) == val2, getattr(model, orig_key2) == val1)
+                ))
+                used_suffixes.add(suffix)
+            else:
+                # Not a flippable pair, just handle normally
+                if strict_side:
+                    conditions.append(self.build_conditions(model, normalized_map[key1], val1, use_or))
+                else:
+                    normalized_key = normalized_map[key1]
+                    key2 = "p2" + normalized_key[2:]
+                    conditions.append(or_(
+                        self.build_conditions(model, normalized_key, val1, use_or=False),
+                        self.build_conditions(model, key2, val1, use_or=False)
+                    ))
+
+        # Process p2 field if there was no p1 fields or pair supplied
+        for key2, val2 in p2_fields.items():
+            suffix = key2[3:]
+            if suffix not in used_suffixes:
+
+                if strict_side:
+                    conditions.append(self.build_conditions(model, normalized_map[key2], val2, use_or))
+                else:
+                    normalized_key = normalized_map[key2]
+                    key1 = "p1" + normalized_key[2:]
+                    conditions.append(or_(
+                        self.build_conditions(model, key1, val2, use_or=False),
+                        self.build_conditions(model, normalized_key, val2, use_or=False)
+                    ))
+
+        if conditions:
+            query = query.where(and_(*conditions))
+
         return query
 
     async def get_total_replays_query_count(self, query_params: dict = None) -> int:
