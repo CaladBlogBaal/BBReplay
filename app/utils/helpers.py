@@ -151,6 +151,26 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
+def parse_bool(value):
+
+    falsy_values = {"false", "0", "no", "off", "", "none", "null"}
+    truthy_values = {"true", "1", "yes", "on"}
+
+    if isinstance(value, bool):
+        return value
+
+    if value is None:
+        return False
+
+    if isinstance(value, str):
+        value_lower = value.strip().lower()
+        if value_lower in falsy_values:
+            return False
+        if value_lower in truthy_values:
+            return True
+
+    # Fallback: Python's default bool conversion
+    return bool(value)
 
 def friendly_file(replay: Replay) -> tuple[str, str]:
     p1 = replay.p1
