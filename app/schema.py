@@ -36,4 +36,5 @@ class ReplayUpdate(BaseModel):
 
 class ReplayQuery(ReplayUpdate):
     datetime_: typing.Union[datetime, tuple[typing.Union[str, datetime]], list[typing.Union[str, datetime]]] = None
+    strict_side: bool = None
 
