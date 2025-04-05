@@ -52,6 +52,14 @@ def validate_replay_query(params: dict, model: typing.Type[BaseModel]) -> None:
 def dict_to_url_query(params: dict):
     return urlencode(params)
 
+def convert_character_ids(params: dict):
+    # to not break old urls with the field name changes
+    if "p1_character_id" in params:
+        params["p1_toon"] = params.pop("p1_character_id")
+
+    if "p2_character_id" in params:
+        params["p2_toon"] = params.pop("p2_character_id")
+
 def get_strict_side(params: dict, default: bool = False):
     if "strict_side" in params:
         try:
@@ -72,11 +80,7 @@ async def get_replays_into_sets():
     per_page = 100  # Default number of replays per page
     params = dict(request.args)
     # to not break old urls with the field name changes
-    if "p1_character_id" in params:
-        params["p1_toon"] = params.pop("p1_character_id")
-
-    if "p2_character_id" in params:
-        params["p2_toon"] = params.pop("p2_character_id")
+    convert_character_ids(params)
 
     params["page"] = str(page)
     params["strict_side"]  = get_strict_side(params)
@@ -146,6 +150,7 @@ async def get_replays_api():
         except ValueError:
             pass  # Keep as is if it cannot be converted to int
 
+    convert_character_ids(query_params)
     query_params["strict_side"]  = get_strict_side(query_params)
 
 
