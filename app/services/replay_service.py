@@ -89,8 +89,13 @@ class ReplayService:
         # not mutating the original dictionary
         params_copy = query_params.copy()
         strict_side = params_copy.pop("strict_side", True)
+        # select * from table
         query = select(model)
         conditions = []
+        # Initialize lists for non-strict flippable conditions
+        p1_conditions = []
+        p2_conditions = []
+
         used_suffixes = set()
         # Map normalized -> original key (to undo later)
         normalized_map = {}
@@ -127,7 +132,7 @@ class ReplayService:
                 val2 = p2_fields[key2]
                 orig_key1 = normalized_map[key1]
                 orig_key2 = normalized_map[key2]
-
+                # table.orig_key1 = :val1 AND table.orig_key2 = :val2 OR table.orig_key1 = :val2 AND table.orig_key2 = :val1
                 conditions.append(or_(
                     and_(
                         self.build_conditions(model, orig_key1, val1, use_or=False),
@@ -142,14 +147,14 @@ class ReplayService:
             else:
                 # Not a flippable pair, just handle normally
                 if strict_side:
+                    # table.normalized_map[key1] = :val1
                     conditions.append(self.build_conditions(model, normalized_map[key1], val1, use_or))
                 else:
                     normalized_key = normalized_map[key1]
                     key2 = "p2" + normalized_key[2:]
-                    conditions.append(or_(
-                        self.build_conditions(model, normalized_key, val1, use_or=False),
-                        self.build_conditions(model, key2, val1, use_or=False)
-                    ))
+                    p1_conditions.append(self.build_conditions(model, normalized_map[key1], val1, use_or=False))
+                    p2_conditions.append(
+                        self.build_conditions(model, key2, val1, use_or=False))
 
         # Process p2 field if there was no p1 fields or pair supplied
         for key2, val2 in p2_fields.items():
@@ -161,10 +166,19 @@ class ReplayService:
                 else:
                     normalized_key = normalized_map[key2]
                     key1 = "p1" + normalized_key[2:]
-                    conditions.append(or_(
-                        self.build_conditions(model, key1, val2, use_or=False),
-                        self.build_conditions(model, normalized_key, val2, use_or=False)
-                    ))
+                    p1_conditions.append(
+                        self.build_conditions(model, key1, val2, use_or=False))
+                    p2_conditions.append(self.build_conditions(model, normalized_map[key2], val2, use_or=False))
+
+        # Having a single or between accumulated conditions for none flippable pairs
+        if not strict_side and (p1_conditions or p2_conditions):
+            # Only add conditions if we actually collected any
+            # (p1_condition and p1_condition) OR (p2_condition and p2_condition)
+            side_condition = or_(
+                and_(*p1_conditions) if p1_conditions else None,
+                and_(*p2_conditions) if p2_conditions else None
+            )
+            conditions.append(side_condition)
 
         # Handle other non-flippable parameters
         for key, value in other_params.items():
