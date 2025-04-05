@@ -166,6 +166,10 @@ class ReplayService:
                         self.build_conditions(model, normalized_key, val2, use_or=False)
                     ))
 
+        # Handle other non-flippable parameters
+        for key, value in other_params.items():
+            conditions.append(self.build_conditions(model, normalized_map[key], value, use_or))
+
         if conditions:
             query = query.where(and_(*conditions))
 
