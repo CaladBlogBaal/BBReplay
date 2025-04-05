@@ -129,8 +129,14 @@ class ReplayService:
                 orig_key2 = normalized_map[key2]
 
                 conditions.append(or_(
-                    and_(getattr(model, orig_key1) == val1, getattr(model, orig_key2) == val2),
-                    and_(getattr(model, orig_key1) == val2, getattr(model, orig_key2) == val1)
+                    and_(
+                        self.build_conditions(model, orig_key1, val1, use_or=False),
+                        self.build_conditions(model, orig_key2, val2, use_or=False)
+                    ),
+                    and_(
+                        self.build_conditions(model, orig_key1, val2, use_or=False),
+                        self.build_conditions(model, orig_key2, val1, use_or=False)
+                    )
                 ))
                 used_suffixes.add(suffix)
             else:
