@@ -52,6 +52,17 @@ def validate_replay_query(params: dict, model: typing.Type[BaseModel]) -> None:
 def dict_to_url_query(params: dict):
     return urlencode(params)
 
+def get_strict_side(params: dict, default: bool = False):
+    if "strict_side" in params:
+        try:
+            strict_side = parse_bool(params["strict_side"])
+        except ValueError:
+            strict_side = default
+    else:
+        strict_side = default
+
+    return strict_side
+
 
 @bp.route("/api/replay-sets", methods=["GET"])
 @rate_limit(2, timedelta(seconds=1))
@@ -67,16 +78,8 @@ async def get_replays_into_sets():
     if "p2_character_id" in params:
         params["p2_toon"] = params.pop("p2_character_id")
 
-    if "strict_side" in params:
-        try:
-            strict_side = parse_bool(params["strict_side"])
-        except ValueError:
-            strict_side = False
-    else:
-        strict_side = False
-
     params["page"] = str(page)
-    params["strict_side"]  = strict_side
+    params["strict_side"]  = get_strict_side(params)
     replay_cache = cache
     cached_data = replay_cache.get(params)
     params.pop("page", None)
@@ -143,15 +146,7 @@ async def get_replays_api():
         except ValueError:
             pass  # Keep as is if it cannot be converted to int
 
-    if "strict_side" in query_params:
-        try:
-            strict_side = parse_bool(query_params["strict_side"])
-        except ValueError:
-            strict_side = True
-    else:
-        strict_side = True
-
-    query_params["strict_side"]  = strict_side
+    query_params["strict_side"]  = get_strict_side(query_params)
 
 
     limit = 10000
