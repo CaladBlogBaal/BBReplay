@@ -165,7 +165,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
   - Returns JSON data of the created replay.
 
-#### 4. GET /api/replay/<str:filename>
+#### 4. GET /api/replay?filename=<str:filename>
 
 - Description: Retrieve a specific replay by its ID.
 - Parameters:
@@ -173,7 +173,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns JSON data of the specified replay.
 
-#### 5. PUT /api/replay/<str:filename>
+#### 5. PUT /api/replay?filename=<str:filename>
 
 - Description: Update an existing replay.
 - Parameters:
@@ -183,7 +183,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns JSON data of the updated replay.
 
-#### 6. DELETE /api/replay/<str:filename>
+#### 6. DELETE /api/replay?filename=<str:filename>
 
 - Description: Delete a specific replay by its ID.
 - Parameters:
@@ -191,7 +191,7 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns a success message upon successful deletion.
 
-#### 7. GET /download
+#### 7. GET /download?filename=<str:filename>
 
 - Description: Download a specific replay file by its ID.
 - Parameters:
@@ -199,11 +199,11 @@ The routes are defined in routes/replay_routes.py
 - Response:
    - Returns the replay file as a downloadable attachment.
 
-#### 8. POST /download-set
+#### 8. POST /download-set?filenames=<json:str[]>
 
 - Description: Download multiple replays as a compressed ZIP file.
 - Request Body:
-   - JSON array of replay IDs to download.
+   - JSON array of replay filenames to download.
 - Response:
    - Returns a compressed ZIP file containing the requested replays.
 
