@@ -31,7 +31,7 @@ async def test_collapse_replays_into_sets():
 def test_order_replays_by_options():
     replays = REPLAYS_SET["replays"]
 
-    order_by_criteria_replays(replays, pos="LEFT", search=[76561198079498381])
+    replays = order_by_criteria_replays(replays, pos="LEFT", search=[76561198079498381])
 
     assert all(replay["p1"] == "Dark Souls II" for replay in replays)
     order_by_criteria_replays(replays, pos="RIGHT", search=["Dark"])

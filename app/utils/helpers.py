@@ -110,40 +110,42 @@ def order_by_criteria_replays(replays: typing.List[dict], **options: typing.Dict
 
     exclude_keys = ["p1wins", "p2wins"]
 
-    # Iterate in reverse to avoid issues with list modification
-    for i in range(len(replays) - 1, -1, -1):
-        replay = replays[i]
+    filtered_replays = []
+
+    for replay in replays:
+        matched = False
 
         for key, value in replay.items():
-
             if key in exclude_keys:
                 continue
 
-            if any(run_search(search_option, value) for search_option in search_terms):
-
+            if any(run_search(search_option, str(value)) for search_option in search_terms):
+                matched = True
+                # checking if it qualifies secondary checks
                 if "p2" in key:
-                    # delete replay
-                    if set_outcome(replay, "p2") != outcome and outcome:
-                        del replays[i]
-                        continue
-                    # Swap players if position is specified
+                    if outcome and set_outcome(replay, "p2") != outcome:
+                        matched = False
+                        break
                     if pos == "LEFT":
                         swap_players(replay)
                         swap_set_wins(replay)
                         swap_set_icons(replay)
 
                 elif "p1" in key:
-                    # delete replay
-                    if set_outcome(replay, "p1") != outcome and outcome:
-                        del replays[i]
-                        continue
-                    # Swap players if position is specified
+                    if outcome and set_outcome(replay, "p1") != outcome:
+                        matched = False
+                        break
                     if pos == "RIGHT":
                         swap_players(replay)
                         swap_set_wins(replay)
                         swap_set_icons(replay)
 
-    return replays
+                break  # Stop at first matching value, don't need to continue processing
+
+        if matched:
+            filtered_replays.append(replay)
+
+    return filtered_replays
 
 
 def chunks(lst, n):
