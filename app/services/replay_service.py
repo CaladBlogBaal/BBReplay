@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 
 import sqlalchemy
-from sqlalchemy import func, extract, or_, and_, desc, case, cast
+from sqlalchemy import func, or_, desc, case, cast
 from sqlalchemy.future import select
 from sqlalchemy.exc import NoResultFound
 
@@ -14,6 +14,7 @@ from app import db_manager
 from app.models.replay import Replay
 from app.schema import ReplayCreate, ReplayUpdate
 from app.services.bbcfim_service import BBCFIM
+from app.services.query_builder import QueryBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,8 @@ class _ContextDBAcquire:
 class ReplayService:
     def __init__(self, session_factory: db_manager):
         self.db_manager = session_factory
-
+        self.query_builder = QueryBuilder()
+        
     def acquire(self):
         return _ContextDBAcquire(self.db_manager)
 
@@ -59,140 +61,10 @@ class ReplayService:
             logger.info(f"Returned replay with ID: {filename}")
             return replay
 
-    def build_conditions(self, model, key, value, use_or=True):
-        conditions = []
-
-        if isinstance(value, str):
-            value = value.strip().lower()
-            conditions.append(func.lower(getattr(model, key)).like(f"%{value}%"))
-
-        elif isinstance(value, datetime):
-            day_condition = extract("day", getattr(model, key)) == value.day
-            month_condition = extract("month", getattr(model, key)) == value.month
-            hour_condition = extract("hour", getattr(model, key)) == value.hour
-            minute_condition = extract("minute", getattr(model, key)) == value.minute
-            conditions.extend([day_condition, month_condition, hour_condition, minute_condition])
-
-        elif isinstance(value, tuple) or isinstance(value, list) and len(value) == 2:
-            start, end = value
-            conditions.append(getattr(model, key).between(start, end))
-
-        else:
-            conditions.append(getattr(model, key) == value)
-
-        if use_or:
-            return or_(*conditions)
-        else:
-            return and_(*conditions)
-
-    def build_query(self, model, query_params, use_or=True):
-        # not mutating the original dictionary
-        params_copy = query_params.copy()
-        strict_side = params_copy.pop("strict_side", True)
-        # select * from table
-        query = select(model)
-        conditions = []
-        # Initialize lists for non-strict flippable conditions
-        p1_conditions = []
-        p2_conditions = []
-
-        used_suffixes = set()
-        # Map normalized -> original key (to undo later)
-        normalized_map = {}
-        normalized_params = {}
-
-        # Categorize parameters into p1, p2, and others in one pass
-        p1_fields = {}
-        p2_fields = {}
-        other_params = {}
-
-        for key, value in params_copy.items():
-            if key == "p1":
-                nk = "p1_name"
-            elif key == "p2":
-                nk = "p2_name"
-            else:
-                nk = key
-            normalized_map[nk] = key  # so we can map back later
-            normalized_params[nk] = value
-
-            # Split into p1, p2, or other
-            if nk.startswith("p1"):
-                p1_fields[nk] = value
-            elif nk.startswith("p2"):
-                p2_fields[nk] = value
-            else:
-                other_params[nk] = value
-
-        for key1, val1 in p1_fields.items():
-            suffix = key1[3:]
-            key2 = f"p2_{suffix}"
-            # Handle flippable fields: if both p1_x and p2_x exist
-            if key2 in p2_fields:
-                val2 = p2_fields[key2]
-                orig_key1 = normalized_map[key1]
-                orig_key2 = normalized_map[key2]
-                # table.orig_key1 = :val1 AND table.orig_key2 = :val2 OR table.orig_key1 = :val2 AND table.orig_key2 = :val1
-                conditions.append(or_(
-                    and_(
-                        self.build_conditions(model, orig_key1, val1, use_or=False),
-                        self.build_conditions(model, orig_key2, val2, use_or=False)
-                    ),
-                    and_(
-                        self.build_conditions(model, orig_key1, val2, use_or=False),
-                        self.build_conditions(model, orig_key2, val1, use_or=False)
-                    )
-                ))
-                used_suffixes.add(suffix)
-            else:
-                # Not a flippable pair, just handle normally
-                if strict_side:
-                    # table.normalized_map[key1] = :val1
-                    conditions.append(self.build_conditions(model, normalized_map[key1], val1, use_or))
-                else:
-                    normalized_key = normalized_map[key1]
-                    key2 = "p2" + normalized_key[2:]
-                    p1_conditions.append(self.build_conditions(model, normalized_map[key1], val1, use_or=False))
-                    p2_conditions.append(
-                        self.build_conditions(model, key2, val1, use_or=False))
-
-        # Process p2 field if there was no p1 fields or pair supplied
-        for key2, val2 in p2_fields.items():
-            suffix = key2[3:]
-            if suffix not in used_suffixes:
-
-                if strict_side:
-                    conditions.append(self.build_conditions(model, normalized_map[key2], val2, use_or))
-                else:
-                    normalized_key = normalized_map[key2]
-                    key1 = "p1" + normalized_key[2:]
-                    p1_conditions.append(
-                        self.build_conditions(model, key1, val2, use_or=False))
-                    p2_conditions.append(self.build_conditions(model, normalized_map[key2], val2, use_or=False))
-
-        # Having a single or between accumulated conditions for none flippable pairs
-        if not strict_side and (p1_conditions or p2_conditions):
-            # Only add conditions if we actually collected any
-            # (p1_condition and p1_condition) OR (p2_condition and p2_condition)
-            side_condition = or_(
-                and_(*p1_conditions) if p1_conditions else None,
-                and_(*p2_conditions) if p2_conditions else None
-            )
-            conditions.append(side_condition)
-
-        # Handle other non-flippable parameters
-        for key, value in other_params.items():
-            conditions.append(self.build_conditions(model, normalized_map[key], value, use_or))
-
-        if conditions:
-            query = query.where(and_(*conditions))
-
-        return query
-
     async def get_total_replays_query_count(self, query_params: dict = None) -> int:
         async with self.acquire() as session:
             if query_params:
-                query = self.build_query(Replay, query_params)
+                query = self.query_builder.build_query(Replay, query_params)
                 count_query = query.with_only_columns(func.count())  # Count query
                 result = await session.execute(count_query)
                 total_replays = result.scalar()
@@ -407,7 +279,7 @@ class ReplayService:
                           per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
         async with self.acquire() as session:
 
-            query = self.build_query(Replay, query_params)
+            query = self.query_builder.build_query(Replay, query_params)
 
             if per_page:  # Add pagination to the query
                 offset = (page - 1) * per_page
