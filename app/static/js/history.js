@@ -87,8 +87,8 @@ function populateFieldsWithParameters() {
         //    handleCharacterIcon(value, 'characterDropdown2', 'characterContainer2');
        // }
     }
-    const value = searchParams.get('p1_toon') || '';
-    const value2 = searchParams.get('p2_toon') || '';
+    const value = searchParams.get('p1_character_id')  || searchParams.get('p1_toon') || '';
+    const value2 = searchParams.get('p2_character_id') || searchParams.get('p2_toon') || '';
     handleCharacterIcon(value,'characterDropdown', 'characterContainer');
     handleCharacterIcon(value2, 'characterDropdown2', 'characterContainer2');
 }
