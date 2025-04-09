@@ -47,68 +47,38 @@ class QueryBuilder:
             normalized_params: Normalized query parameters to ensure the pattern of p1_x is maintained.
             normalized_map: A map to undue any normalization of query parameters.
         Behavior:
-            - Use stricter p1/p2 group-based matching when a valid pair is present
-            - Otherwise, use flexible field flipping logic
+            - Use stricter p1/p2 group-based matching
         """
 
-        p1_suffixes = {nk[2:] for nk in normalized_params if nk.startswith("p1")}
-        p2_suffixes = {nk[2:] for nk in normalized_params if nk.startswith("p2")}
 
-        has_valid_pair = bool(p1_suffixes & p2_suffixes)
+        p1_conditions = []
+        p2_conditions = []
+        flipped_p1_conditions = []
+        flipped_p2_conditions = []
 
-        if has_valid_pair:
-            # Use the old logic for strict pair matching
-            p1_conditions = []
-            p2_conditions = []
-            flipped_p1_conditions = []
-            flipped_p2_conditions = []
+        for nk, val in normalized_params.items():
+            # undue any normalization of query parameter keys to ensure it matches the model defined specification/class attributes
+            orig_key = normalized_map[nk]
 
-            for nk, val in normalized_params.items():
-                # undue any normalization of query parameter keys to ensure it matches the model defined specification/class attributes
-                orig_key = normalized_map[nk]
+            if nk.startswith("p1"):
+                # Builds a condition like replays.p1 = value
+                p1_conditions.append(self.build_conditions(model, orig_key, val, use_or=False))
+                # Flipped condition: p1 -> p2
+                # Builds a condition like replays.p2 = value
+                flipped_key = "p2" + orig_key[2:]
+                flipped_p1_conditions.append(self.build_conditions(model, flipped_key, val, use_or=False))
 
-                if nk.startswith("p1"):
-                    # Builds a condition like replays.p1 = value
-                    p1_conditions.append(self.build_conditions(model, orig_key, val, use_or=False))
-                    # Flipped condition: p1 -> p2
-                    # Builds a condition like replays.p2 = value
-                    flipped_key = "p2" + orig_key[2:]
-                    flipped_p1_conditions.append(self.build_conditions(model, flipped_key, val, use_or=False))
+            elif nk.startswith("p2"):
+                p2_conditions.append(self.build_conditions(model, orig_key, val, use_or=False))
+                flipped_key = "p1" + orig_key[2:]
+                flipped_p2_conditions.append(self.build_conditions(model, flipped_key, val, use_or=False))
 
-                elif nk.startswith("p2"):
-                    p2_conditions.append(self.build_conditions(model, orig_key, val, use_or=False))
-                    flipped_key = "p1" + orig_key[2:]
-                    flipped_p2_conditions.append(self.build_conditions(model, flipped_key, val, use_or=False))
-
-            # ( p1_conditions and p2_conditions) or (flipped_p1_condition_p1 and flipped_p2_conditions)
-            # To ensure pairings are equivalent regardless of side
-            return or_(
-                and_(*p1_conditions, *p2_conditions),
-                and_(*flipped_p1_conditions, *flipped_p2_conditions)
+        # ( p1_conditions and p2_conditions) or (flipped_p1_condition_p1 and flipped_p2_conditions)
+        # To ensure pairings are equivalent regardless of side
+        return or_(
+            and_(*p1_conditions, *p2_conditions),
+            and_(*flipped_p1_conditions, *flipped_p2_conditions)
             )
-
-        else:
-            # More flexible field logic to handle cases where no strict character pair is provided
-            conditions = []
-            flipped_conditions = []
-
-            for nk, val in normalized_params.items():
-                orig_key = normalized_map[nk]
-
-                if nk.startswith("p1") or nk.startswith("p2"):
-                    p1_key = "p1" + orig_key[2:]
-                    flipped_key = "p2" + orig_key[2:]
-                    # Builds a condition like replays.p1 = value
-                    conditions.append(self.build_conditions(model, p1_key, val, use_or=False))
-                    # Builds a condition like replays.p2 = value
-                    flipped_conditions.append(self.build_conditions(model, flipped_key, val, use_or=False))
-
-            # (conditions) or (flipped_conditions)
-            # Ensures (p1 vs. p2) is interchangeable for satisfying the condition
-            return or_(
-                and_(*conditions),
-                and_(*flipped_conditions)
-        )
 
     def _build_pairwise_flippable_conditions(self, model: typing.Type[Replay], p1_fields: dict[str, typing.Any],
                                                  p2_fields: dict[str, typing.Any], normalized_map: dict[str, str],
