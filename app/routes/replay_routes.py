@@ -94,11 +94,11 @@ async def get_replays_into_sets():
     if cached_data:
         replays = cached_data
     else:
-        try:
-            replays_list = [await replay.to_dict() async for replay in controller.get_replays(params, page=page,
-                                                                                            per_page=per_page)]
-        except NoResultFound:
-            return jsonify({"error": f"Replay(s) with query parameters `{dict_to_url_query(params)}` not found"}), 404
+        replays_list = [await replay.to_dict() async for replay in controller.get_replays(params, page=page,
+                                                                                        per_page=per_page)]
+        if not replays_list:
+            return jsonify(error=f"Replay(s) with query parameters `{dict_to_url_query(params)}` not found",
+                           replays=replays_list, current_page=page, max_page=1), 404
 
         replay_cache.set(params, replays_list)
         replays = replay_cache.get(params)
@@ -169,12 +169,12 @@ async def get_replays_api():
         return check
 
     validate_replay_query(query_params, ReplayQuery)
-    try:
-        replays = [await replay.to_dict(include_replay_data=bool(include))
-                   async for replay in controller.get_replays(query_params, per_page=per_page, page=page)]
+    replays = [await replay.to_dict(include_replay_data=bool(include))
+               async for replay in controller.get_replays(query_params, per_page=per_page, page=page)]
 
-    except NoResultFound:
-        return jsonify({"error": f"Replay(s) with query parameters `{dict_to_url_query(query_params)}` not found"}), 404
+    if not replays:
+        return jsonify(error=f"Replay(s) with query parameters `{dict_to_url_query(query_params)}` not found",
+                       replays=replays, current_page=page, max_page=1),  404
 
     return jsonify(replays=replays, current_page=page, max_page=max_page)
 
