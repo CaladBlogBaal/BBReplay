@@ -117,7 +117,8 @@ async def get_replays_into_sets():
     if outcome or pos:
         search = [params[key] for key in params if key != "strict_side"]
         # will probably change this later
-        replays = order_by_criteria_replays(replays, pos=pos, outcome=outcome, search=search)
+        if search:
+            replays = order_by_criteria_replays(replays, pos=pos, outcome=outcome, search=search)
 
     return jsonify(replays=replays, current_page=page, max_page=max_page)
 
