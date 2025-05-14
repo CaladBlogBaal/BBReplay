@@ -119,7 +119,7 @@ def order_by_criteria_replays(replays: typing.List[dict], **options: typing.Dict
             if key in exclude_keys:
                 continue
 
-            if any(run_search(search_option, str(value)) for search_option in search_terms):
+            if any(run_search(search_option, value) for search_option in search_terms):
                 matched = True
                 # checking if it qualifies secondary checks
                 if "p2" in key:
