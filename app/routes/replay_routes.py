@@ -6,7 +6,6 @@ from urllib.parse import urlencode
 from quart import Blueprint, request, jsonify, Quart, send_file, Response
 from quart_rate_limiter import limit_blueprint, rate_limit
 from pydantic import BaseModel
-from sqlalchemy.exc import NoResultFound
 
 from app.services.bbcfim_service import BBCFIM
 from app.utils.cache import cache
@@ -113,7 +112,6 @@ async def get_replays_into_sets():
     replays = collapse_replays_into_sets(replays)
 
     replays.sort(key=lambda r: r["datetime_"], reverse=True)
-
     if outcome or pos:
         search = [params[key] for key in params if key != "strict_side"]
         # will probably change this later
@@ -180,16 +178,20 @@ async def get_replays_api():
     return jsonify(replays=replays, current_page=page, max_page=max_page)
 
 
-@bp.route("/api/replay/<filename>", methods=["GET"])
+@bp.route("/api/replay", methods=["GET"])
 @rate_limit(10, timedelta(seconds=1))
-async def get_replay_api(filename):
+async def get_replay_api():
+    query_params = request.args.to_dict()
 
-    async for replay in controller.get_replay({"filename": filename}):
+    if "filename" not in query_params:
+        return jsonify({"error": f"filename, is a required parameter"}), 401
+
+    async for replay in controller.get_replay(query_params):
         response = jsonify(await replay.to_dict(include_replay_data=True))
         code = 200
         return clear_cache_on_success(response, code)
 
-    response = {"error": "Replay doesn't exist"}
+    response = {"error": f"Replay with name: ({query_params['filename']}) doesn't exist."}
     code = 404
     return jsonify(response), code
 
@@ -219,12 +221,16 @@ async def create_replay_api():
 
 
 
-@bp.route("/api/replay/<filename>", methods=["PUT"])
+@bp.route("/api/replay", methods=["PUT"])
 @rate_limit(1, timedelta(seconds=1))
 @require_api_key
-async def update_replay_api(filename):
+async def update_replay_api():
+    query_params = request.args.to_dict()
 
-    replay = await controller.update_replay(filename)
+    if "filename" not in query_params:
+        return jsonify({"error": f"filename, is a required parameter"}), 401
+
+    replay = await controller.update_replay(query_params["filename"])
     if replay is None:
         response = jsonify({"error": "Replay not found"})
         code = 404
@@ -235,15 +241,20 @@ async def update_replay_api(filename):
     return clear_cache_on_success(response, code)
 
 
-@bp.route("/api/replay/<filename>", methods=["DELETE"])
+@bp.route("/api/replay", methods=["DELETE"])
 @rate_limit(1, timedelta(seconds=30))
 @require_api_key
-async def delete_replay_api(filename):
+async def delete_replay_api():
 
-    delete = await controller.delete_replay(filename)
+    query_params = request.args.to_dict()
+
+    if "filename" not in query_params:
+        return jsonify({"error": f"filename, is a required parameter"}), 401
+
+    delete = await controller.delete_replay(query_params["filename"])
 
     if delete:
-        response = jsonify({"message": f"Successfully deleted replay with id {filename}"})
+        response = jsonify({"message": f"Successfully deleted replay with id {query_params['filename']}"})
         code = 204
     else:
         response = jsonify({"error": "Replay not found"})
