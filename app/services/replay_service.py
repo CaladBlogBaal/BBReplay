@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 
 import sqlalchemy
-from sqlalchemy import func, or_, desc, case, cast
+from sqlalchemy import func, or_, desc, case, cast, Select
 from sqlalchemy.future import select
 from sqlalchemy.exc import NoResultFound
 
@@ -81,15 +81,37 @@ class ReplayService:
         return total_pages
 
     @staticmethod
-    async def _stream_replays(query, session) -> typing.AsyncGenerator[Replay, None]:
-        # Peek at the first result to check if there are any results
-        query = query.order_by(desc(Replay.datetime_))
-        first_replay = await (await session.stream_scalars(query)).first()
-        if not first_replay:
-            raise NoResultFound("Replay(s) not found")
+    async def _stream_query_results(
+            acquire_session: _ContextDBAcquire.__aenter__,
+            query_factory: typing.Callable[[], Select],
+            yield_per: int = 10000,
+    ) -> AsyncGenerator[typing.Any, None]:
 
-        async for replay in await session.stream_scalars(query):
+        async with acquire_session() as session:
+            try:
+                query = query_factory()
+                stream = await session.stream(query.execution_options(yield_per=yield_per))
+
+                async for row in stream:
+                    yield row
+
+            except Exception as e:
+                await session.rollback()
+                logger.exception("Streaming query failed: %s", str(e))
+                raise
+
+    @staticmethod
+    async def _stream_replays(query, session) -> typing.AsyncGenerator[Replay, None]:
+        check = True
+        stream = await session.stream_scalars(query)
+
+        async for replay in stream:
+            check = False
             yield replay
+
+        # If the stream is empty nothing was found
+        if check:
+            raise NoResultFound("Replay(s) not found")
 
     async def get_total_replays(self):
         async with self.acquire() as session:
@@ -258,23 +280,24 @@ class ReplayService:
             return results
 
     async def get_all_replay_timestamps(self):
-        async with self.acquire() as session:
-            query = select(Replay.datetime_)
+        async for row in self._stream_query_results(
+                acquire_session=self.acquire,
+                query_factory=lambda: select(Replay.datetime_),
+                yield_per=10000
+        ):
+            yield row.datetime_
 
-            async for replay in self._stream_replays(query, session):
-                yield replay
-
-            logger.info(f"Returned all replay timestamps.")
+        logger.info(f"Returned all timestamps.")
 
     async def get_all_filenames(self):
-        async with self.acquire() as session:
-            query = select(Replay.filename)
+        async for row in self._stream_query_results(
+                acquire_session=self.acquire,
+                query_factory=lambda: select(Replay.filename),
+                yield_per=10000
+        ):
+            yield row.filename
 
-            async for replay in self._stream_replays(query, session):
-                yield replay
-
-            logger.info(f"Returned all replay filenames.")
-
+        logger.info(f"Returned all filenames.")
     async def get_replays(self, query_params: typing.Dict[str, typing.Union[int, str, bytes]],
                           per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
         async with self.acquire() as session:

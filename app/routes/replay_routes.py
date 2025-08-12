@@ -1,9 +1,11 @@
+import asyncio
+import json
 import typing
 from datetime import timedelta
 
 from urllib.parse import urlencode
 
-from quart import Blueprint, request, jsonify, Quart, send_file, Response
+from quart import Blueprint, request, jsonify, Quart, send_file, Response, make_response
 from quart_rate_limiter import limit_blueprint, rate_limit
 from pydantic import BaseModel
 
@@ -136,8 +138,13 @@ def get_character_icons():
 @bp.route("/api/filenames", methods=["GET"])
 @rate_limit(2, timedelta(seconds=1))
 async def get_all_filenames():
-    data = await controller.get_all_filenames()
-    return jsonify([filename async for filename in data])
+    async def stream():
+        async for filename in await controller.get_all_filenames():
+            yield json.dumps(filename) + "\n"
+
+    response = await make_response(stream())
+    response.headers["Content-Type"] = "application/x-ndjson"
+    return response
 
 @bp.route("/api/replays", methods=["GET"])
 @rate_limit(2, timedelta(seconds=1))
@@ -339,7 +346,19 @@ async def character_matchup():
     return jsonify(data)
 
 
-@bp.route("api/replay-timestamps", methods=["GET"])
+@bp.route("/api/replay-timestamps", methods=["GET"])
 async def get_all_timestamps():
-    data = await controller.get_all_replay_timestamps()
-    return jsonify([timestamp async for timestamp in data])
+    # Check if the stream is closed later
+    async def stream():
+
+        async for date in await controller.get_all_replay_timestamps():
+            timestamp = date.strftime("%a, %d %b %Y %H:%M:%S GMT")
+            yield json.dumps(timestamp) + "\n"
+
+
+
+    response = await make_response(stream())
+    response.headers["Content-Type"] = "application/x-ndjson"
+    return response
+
+
