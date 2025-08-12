@@ -23,8 +23,8 @@ class DBManager:
         self.engine = create_async_engine(self.config.database_url, pool_pre_ping=True, echo_pool=True, echo=False,
                                           pool_recycle=3600, poolclass=NullPool)
         DBManager.Base = declarative_base()
-        self.session_factory = scoped_session(
-            sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
+        self.session_factory = sessionmaker(
+            self.engine, class_=AsyncSession, expire_on_commit=False
         )
 
     async def get_db_session(self):
