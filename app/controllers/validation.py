@@ -61,7 +61,7 @@ def parse_date_string(date_object: typing.Union[str, datetime, typing.Tuple[Any]
             dates = []
             for element in date_object:
                 dates.append(parse_date_string(element))
-            return tuple(dates)
+            return tuple(sorted(dates))
         else:
             raise TypeError("Invalid object was passed for date.")
 
