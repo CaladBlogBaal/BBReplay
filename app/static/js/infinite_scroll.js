@@ -142,6 +142,12 @@ const replayLoader = {
     downloadButton2.textContent = 'Download Set';
     downloadRow2.appendChild(downloadButton2);
 
+    const openRow = createElementWithClass('div', 'row no-gutters');
+    const openButton = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
+    openButton.href = `steam://run/586140/?load-replay=http://50.118.225.175/uploads/${replay.filename}`;
+    openButton.textContent = 'View Replay';
+    openRow.appendChild(openButton);
+
     const dateRow = createElementWithClass('div', 'row my-1 no-gutters');
     const dateCol = createElementWithClass('div', 'col');
     const dateSpan = createElementWithClass('span', 'main-font caption');
@@ -165,6 +171,7 @@ const replayLoader = {
 
     footerContainer.appendChild(downloadRow1);
     footerContainer.appendChild(downloadRow2);
+    footerContainer.appendChild(openRow);
     footerContainer.appendChild(dateRow);
 
     footerCol.appendChild(footerContainer);
