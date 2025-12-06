@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import logging
 import functools
 import aiohttp
@@ -26,28 +26,30 @@ class Request:
 
     def __init__(self):
         self.session = None
-        self.queue = asyncio.LifoQueue()
+        self.queue = None      # ❗ Do NOT create here
         self._shutdown = False
 
     async def start(self):
-        """Start the async worker and event loop in the background."""
+        """Start the async worker running in the correct event loop."""
+        loop = asyncio.get_running_loop()
+        self.queue = asyncio.LifoQueue()   # ✔ created in correct loop
         self.session = aiohttp.ClientSession()
-        await self.worker()
+        asyncio.create_task(self.worker())  # ✔ don't await here
 
     async def worker(self):
-        """Worker that handles the request queue asynchronously."""
         while not self._shutdown:
             url, data, retries, method = await self.queue.get()
             try:
                 if method == "post":
-                    await asyncio.create_task(self.post(url, data=data, headers={"Content-Type": "application/octet-stream"}))
+                    await self.post(url, data=data, headers={"Content-Type": "application/octet-stream"})
                 else:
-                    await asyncio.create_task(await self.fetch(url))
+                    await self.fetch(url)
 
                 logger.info(f"Worker finished task with {url}")
+
             except RequestFailed:
                 if retries < self.MAX_RETRIES:
-                    logger.info(f"Request failed retrying {url} ({retries + 1}/{self.MAX_RETRIES})...")
+                    logger.info(f"Request failed retrying {url} ({retries+1}/{self.MAX_RETRIES})...")
                     await self.queue.put((url, data, retries + 1, method))
 
             self.queue.task_done()
@@ -59,8 +61,7 @@ class Request:
             else:
                 self.queue.put_nowait((response.url, None, 0, "get"))
 
-        if headers in (
-        "application/json", "application/javascript", "application/json; charset=utf-8") or "json" in headers:
+        if "json" in headers:
             return await response.json()
         return await response.read()
 
@@ -76,7 +77,7 @@ class Request:
     @error_handle
     async def post(self, url, **kwargs):
         async with self.session.post(url, **kwargs) as response:
-            headers = response.headers.get("Content-Type")
+            headers = response.headers.get("Content-Type", "")
             return await self.return_content(response, headers)
 
     async def stop(self):
@@ -84,4 +85,4 @@ class Request:
         if self.session:
             await self.session.close()
 
-request_handler = Request()
+request_handler = Request() 
