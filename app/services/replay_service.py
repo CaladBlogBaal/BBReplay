@@ -304,6 +304,9 @@ class ReplayService:
 
             query = self.query_builder.build_query(Replay, query_params)
 
+                    # Force ordering here
+            query = query.order_by(Replay.datetime_.desc())
+
             if per_page:  # Add pagination to the query
                 offset = (page - 1) * per_page
                 query = query.limit(per_page).offset(offset)
