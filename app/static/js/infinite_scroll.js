@@ -130,26 +130,64 @@ const replayLoader = {
     const footerCol = createElementWithClass('div', 'col-12 col-sm-6 col-md-2 text-center mb-3');
     const footerContainer = createElementWithClass('div', 'container');
 
-    const downloadRow1 = createElementWithClass('div', 'row no-gutters');
+    const downloadRow1 = createElementWithClass('div');
     const downloadButton1 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
     downloadButton1.href = `/download?filename=${replay.filename}`;
     downloadButton1.textContent = 'Download Game';
     downloadRow1.appendChild(downloadButton1);
 
-    const downloadRow2 = createElementWithClass('div', 'row no-gutters');
+    const downloadRow2 = createElementWithClass('div');
     const downloadButton2 = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
     downloadButton2.href = `/download-set?filenames=${replay.set.join(',')}`;
     downloadButton2.textContent = 'Download Set';
     downloadRow2.appendChild(downloadButton2);
 
-    const openRow = createElementWithClass('div', 'row no-gutters');
-    const openButton = createElementWithClass('a', 'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1');
-    openButton.href = `steam://run/586140/?load-replay=http://50.118.225.175/uploads/${replay.filename}`;
-    openButton.textContent = 'View Replay';
-    openRow.appendChild(openButton);
+    const openRow = createElementWithClass('div');
 
-    const dateRow = createElementWithClass('div', 'row my-1 no-gutters');
-    const dateCol = createElementWithClass('div', 'col');
+    const toggleButton = createElementWithClass(
+        'button',
+        'btn btn-outline-primary btn-sm btn-padding col-12 col-md-auto button text-light mb-1'
+    );
+
+    const replayList = createElementWithClass(
+        'div',
+        'd-none'
+     );
+
+    toggleButton.type = 'button';
+    toggleButton.textContent = `View Replays (${replay.set.length})`;
+
+    replay.set.forEach((setReplay, index) => {
+        const replayButton = createElementWithClass(
+            'a',
+            `btn btn-outline-secondary btn-sm btn-padding col-12 mb-1 button`
+
+        );
+
+        replayButton.href =
+            `steam://run/586140/?load-replay=http://50.118.225.175/uploads/${setReplay}`;
+
+        replayButton.textContent = `Replay ${index + 1}`;
+
+        replayList.appendChild(replayButton);
+     });
+
+    toggleButton.addEventListener('click', () => {
+        const isHidden = replayList.classList.toggle('d-none');
+
+        toggleButton.textContent = isHidden
+            ? `View Replays (${replay.set.length})`
+            : 'Hide Replays';
+
+        toggleButton.setAttribute('aria-expanded', String(!isHidden));
+    });
+
+    openRow.appendChild(toggleButton);
+    footerContainer.appendChild(openRow);
+    footerContainer.appendChild(replayList);
+
+    const dateRow = createElementWithClass('div');
+    const dateCol = createElementWithClass('div');
     const dateSpan = createElementWithClass('span', 'main-font caption');
     const utcDateString = replay.datetime_;
     // Create a Date object using the UTC date string
@@ -172,6 +210,7 @@ const replayLoader = {
     footerContainer.appendChild(downloadRow1);
     footerContainer.appendChild(downloadRow2);
     footerContainer.appendChild(openRow);
+    footerContainer.appendChild(replayList);
     footerContainer.appendChild(dateRow);
 
     footerCol.appendChild(footerContainer);
