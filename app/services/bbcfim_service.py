@@ -15,7 +15,7 @@ class BBCFIM:
             yield await self.download_file(fn)
 
     async def download_file(self, filename: str) -> typing.Tuple[BytesIO, str, str]:
-        buffer = BytesIO(await self.request_handler.fetch(f"{self.BASE_URL}/uploads/{filename}"))
+        buffer = BytesIO(await self.request_handler.fetch(f"{self.BASE_URL}:5000/download/{filename}"))
         buffer.seek(0)
         buffer.name = filename
         return buffer, filename, "application/octet-stream"
