@@ -14,24 +14,25 @@ class QueryBuilder:
     @staticmethod
     def build_conditions(model, key, value, use_or=True):
         conditions = []
+        column = getattr(model, key)
 
         if isinstance(value, str):
             value = value.strip().lower()
-            conditions.append(func.lower(getattr(model, key)).like(f"%{value}%"))
+            conditions.append(column.like(f"{value}%"))
 
         elif isinstance(value, datetime):
-            day_condition = extract("day", getattr(model, key)) == value.day
-            month_condition = extract("month", getattr(model, key)) == value.month
-            hour_condition = extract("hour", getattr(model, key)) == value.hour
-            minute_condition = extract("minute", getattr(model, key)) == value.minute
-            conditions.extend([day_condition, month_condition, hour_condition, minute_condition])
+            # convert datetime → day range
+            start_of_day = datetime(value.year, value.month, value.day, 0, 0, 0)
+            end_of_day = datetime(value.year, value.month, value.day, 23, 59, 59)
 
-        elif isinstance(value, tuple) or isinstance(value, list) and len(value) == 2:
+            conditions.append(column.between(start_of_day, end_of_day))
+
+        elif (isinstance(value, tuple) or isinstance(value, list)) and len(value) == 2:
             start, end = value
-            conditions.append(getattr(model, key).between(start, end))
+            conditions.append(column.between(start, end))
 
         else:
-            conditions.append(getattr(model, key) == value)
+            conditions.append(column == value)
 
         if use_or:
             return or_(*conditions)
