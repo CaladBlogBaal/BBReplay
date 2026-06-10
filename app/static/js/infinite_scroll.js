@@ -166,7 +166,7 @@ const replayLoader = {
 
 
         replayButton.href =
-            `steam://run/586140/?load-replay=http://50.118.225.175:5000/download/${setReplay}`;
+            `steam://run/586140/?load-replay=http://89.167.76.6:5000/download/${setReplay}`;
 
         replayButton.textContent = `Replay ${index + 1}`;
 
