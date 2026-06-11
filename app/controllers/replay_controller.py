@@ -178,7 +178,8 @@ class ReplayController:
                 return
 
             _, filename, _ = replays[0]
-            base_filename, archive_mimetype = friendly_file(await anext(self.stream_replay_projection({"filename": filename})))
+            base_filename, archive_mimetype = friendly_file(await anext(self.stream_replay_projection(
+                {"filename": filename},[Replay.p1, Replay.p2, Replay.p1_toon, Replay.p2_toon])))
             stream = BytesIO()
 
             filename = base_filename.split("(")
