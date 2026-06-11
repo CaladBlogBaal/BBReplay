@@ -2,7 +2,7 @@ from datetime import datetime
 import typing
 
 import sqlalchemy
-from sqlalchemy import func, select, extract, and_, or_
+from sqlalchemy import func, select, extract, and_, or_, RowMapping
 
 from app.models.replay import Replay
 
@@ -167,13 +167,17 @@ class QueryBuilder:
 
         return p1_fields, p2_fields, other_params
 
-    def build_query(self, model, query_params, use_or=True) -> sqlalchemy.sql.Select:
+    def build_query(self, model, query_params, use_or=True,
+                    projection=False, columns=None) -> typing.Union[sqlalchemy.sql.Select,
+    sqlalchemy.RowMapping]:
         """
         Args:
             model: A pydantic BaseModel, used to represent a table.
             query_params (dict): Filter parameters. Special key:
                 - 'strict_side' (bool): If True, enforce exact p1/p2 matching; if False, allow symmetric behaviour ( default ).
             use_or (bool): Whether to use OR logic in multi-part field conditions.
+            projection (bool): If True, returns a column-based projection query (RowMapping results instead of ORM entities)
+            columns (list): List of columns to use in query when projection is supplied.
 
         Returns:
             sqlalchemy.sql.Select: An SQL Select Query
@@ -191,7 +195,11 @@ class QueryBuilder:
         params_copy = query_params.copy() # to not mutate the original dict
         strict_side = params_copy.pop("strict_side", False)
 
-        query = select(model)
+        if projection:
+            query = select(*columns)
+        else:
+            query = select(model)
+
         normalized_params, normalized_map = self._normalize_params(params_copy)
         p1_fields, p2_fields, other_params = self._group_params_by_prefix(normalized_params)
 
