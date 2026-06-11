@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 
 import sqlalchemy
-from sqlalchemy import func, or_, desc, case, cast, Select
+from sqlalchemy import func, or_, case, cast, Select, RowMapping, desc
 from sqlalchemy.future import select
 from sqlalchemy.exc import NoResultFound
 
@@ -46,7 +46,7 @@ class ReplayService:
     def __init__(self, session_factory: db_manager):
         self.db_manager = session_factory
         self.query_builder = QueryBuilder()
-        
+
     def acquire(self):
         return _ContextDBAcquire(self.db_manager)
 
@@ -101,13 +101,13 @@ class ReplayService:
                 raise
 
     @staticmethod
-    async def _stream_replays(query, session) -> typing.AsyncGenerator[Replay, None]:
+    async def _stream_mappings(query, session) -> typing.AsyncGenerator[Replay, None]:
         check = True
-        stream = await session.stream_scalars(query)
+        stream = await session.stream(query)
 
-        async for replay in stream:
+        async for row in stream.mappings():
             check = False
-            yield replay
+            yield row
 
         # If the stream is empty nothing was found
         if check:
@@ -154,10 +154,10 @@ class ReplayService:
                             case(
 
                                 ((Replay.p1_toon == func.least(Replay.p1_toon,
-                                                                       Replay.p2_toon)) & (
+                                                               Replay.p2_toon)) & (
                                          Replay.winner == 0), 1),
                                 ((Replay.p2_toon == func.least(Replay.p1_toon,
-                                                                       Replay.p2_toon)) & (
+                                                               Replay.p2_toon)) & (
                                          Replay.winner == 1), 1)
                                 ,
                                 else_=0
@@ -170,10 +170,10 @@ class ReplayService:
                             case(
 
                                 ((Replay.p1_toon == func.greatest(Replay.p1_toon,
-                                                                          Replay.p2_toon)) & (
+                                                                  Replay.p2_toon)) & (
                                          Replay.winner == 0), 1),
                                 ((Replay.p2_toon == func.greatest(Replay.p1_toon,
-                                                                          Replay.p2_toon)) & (
+                                                                  Replay.p2_toon)) & (
                                          Replay.winner == 1), 1)
                                 ,
                                 else_=0
@@ -298,39 +298,55 @@ class ReplayService:
             yield row.filename
 
         logger.info(f"Returned all filenames.")
-    async def get_replays(self, query_params: typing.Dict[str, typing.Union[int, str, bytes]],
-                          per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
+
+    async def stream_replay_projection(self, query_params: typing.Dict[str, typing.Union[int, str, bytes]],
+                                       columns: typing.List[typing.Union[sqlalchemy.Column, sqlalchemy.Label]],
+                                       per_page=1000, page=1,
+                                       assign_wins=True
+                                       ) -> typing.AsyncGenerator[RowMapping, None]:
         async with self.acquire() as session:
+            if assign_wins:
+                p1wins = case(
+                    (
+                        Replay.recorder_steamid64 == Replay.p1_steamid64,
+                        case((Replay.winner == 0, 1), else_=0),
+                    ),
+                    else_=(1 - Replay.winner),
+                ).label("p1wins")
 
-            query = self.query_builder.build_query(Replay, query_params)
+                p2wins = (1 - p1wins).label("p2wins")
+                columns.append(p1wins)
+                columns.append(p2wins)
 
-                    # Force ordering here
-            query = query.order_by(Replay.datetime_.desc())
+            query = self.query_builder.build_query(Replay, query_params, projection=True, columns=columns)
+
+            query = query.order_by(desc(Replay.datetime_))
 
             if per_page:  # Add pagination to the query
                 offset = (page - 1) * per_page
                 query = query.limit(per_page).offset(offset)
 
-            filenames = []
+            count = 0
 
-            async for replay in self._stream_replays(query, session):
+            async for replay in self._stream_mappings(query, session):
                 yield replay
-                filenames.append(str(replay.filename))
+                count += 1
 
-            if filenames:
-                logger.info(f"Returned replay(s) with ID(s): {','.join(filenames)}")
+            logger.info(f"Returned {count} replays")
 
-    async def get_all_replays(self, per_page=None, page=1) -> typing.AsyncGenerator[Replay, None]:
+    async def stream_all_replay_projections(self, columns,
+                                            per_page=None,
+                                            page=1) -> typing.AsyncGenerator[Replay, None]:
         async with self.acquire() as session:
 
-            query = select(Replay)
+            query = select(*columns)
 
             if per_page:  # Apply pagination
                 offset = (page - 1) * per_page
                 query = select(Replay).limit(per_page).offset(offset)
 
-            async for replay in self._stream_replays(query, session):
-                yield replay
+            async for row in self._stream_mappings(query, session):
+                yield row
 
             if per_page:
                 logger.info(f"Returned all replays for page {page}")
@@ -362,7 +378,7 @@ class ReplayService:
 
     async def update_replay(self, filename: str, replay_update: ReplayUpdate) -> Replay:
         async with self.acquire() as session:
-            replay = await anext(self.get_replays({"filename": filename}))
+            replay = await anext(self.stream_replay_projection({"filename": filename}))
 
             for key, value in replay_update.dict(exclude_unset=True).items():
                 setattr(replay, key, value)

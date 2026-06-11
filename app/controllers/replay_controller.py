@@ -6,6 +6,7 @@ from zipfile import ZipFile
 from typing import Union, Dict, Optional
 
 import sqlalchemy
+from sqlalchemy import RowMapping
 from sqlalchemy.exc import NoResultFound
 
 from quart import request
@@ -23,15 +24,20 @@ class ReplayController:
     def __init__(self, service: ReplayService):
         self.service = service
 
-    async def get_replay(self, query_params: Dict[str, Union[int, str, bytes]], per_page=None, page=1) -> \
-            typing.AsyncGenerator[Replay, None]:
+    async def stream_replay_projection(self, query_params: Dict[str, Union[int, str, bytes]],
+                                       columns: typing.List[typing.Union[sqlalchemy.Column, sqlalchemy.Label]],
+                                       per_page=None, page=1,
+                                       assign_wins = True) -> typing.AsyncGenerator[RowMapping, None]:
+
         validated_data = validate_model_data(query_params, ReplayQuery)
         if type(validated_data) in (Replay, ReplayQuery):
 
             try:
                 cast_attributes_to_types(query_params)
-                async for replay in self.service.get_replays(query_params, per_page=per_page, page=page):
-                    yield replay
+                async for row in self.service.stream_replay_projection(query_params, columns,
+                                                                       per_page=per_page, page=page,
+                                                                       assign_wins= assign_wins):
+                    yield row
 
             except NoResultFound:
                 return
@@ -111,14 +117,16 @@ class ReplayController:
     async def get_all_filenames(self):
         return self.service.get_all_filenames()
 
-    async def get_replays(self, query_params: Dict[str, Union[int, str, bytes]] = None, per_page=None, page=1) \
-            -> typing.AsyncGenerator[Replay, None]:
+    async def stream_replay_rows(self, query_params: Dict[str, Union[int, str, bytes]] = None,
+                                 per_page=None, page=1,
+                                 columns=None
+                                 )  -> typing.AsyncGenerator[RowMapping, None]:
         if query_params:
-            async for replay in self.get_replay(query_params, per_page=per_page, page=page):
-                yield replay
+            async for row in self.stream_replay_projection(query_params, columns, per_page=per_page, page=page):
+                yield row
         else:
-            async for replay in self.service.get_all_replays(per_page=per_page, page=page):
-                yield replay
+            async for row in self.service.stream_all_replay_projections(columns, per_page=per_page, page=page):
+                yield row
 
     async def get_total_pages(self, query_params: dict = None, per_page=10) -> int:
         return await self.service.get_total_pages(query_params, per_page=per_page)
@@ -170,7 +178,7 @@ class ReplayController:
                 return
 
             _, filename, _ = replays[0]
-            base_filename, archive_mimetype = friendly_file(await anext(self.get_replay({"filename": filename})))
+            base_filename, archive_mimetype = friendly_file(await anext(self.stream_replay_projection({"filename": filename})))
             stream = BytesIO()
 
             filename = base_filename.split("(")

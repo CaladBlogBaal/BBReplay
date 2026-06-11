@@ -1,4 +1,3 @@
-import asyncio
 import json
 import typing
 from datetime import timedelta
@@ -9,11 +8,12 @@ from quart import Blueprint, request, jsonify, Quart, send_file, Response, make_
 from quart_rate_limiter import limit_blueprint, rate_limit
 from pydantic import BaseModel
 
+from app.models.replay import Replay
 from app.services.bbcfim_service import BBCFIM
 from app.utils.cache import cache
-from app.utils.constants import CHARACTERS
+from app.utils.constants import CHARACTERS, ALL_COLUMNS
 from app.utils.helpers import require_api_key, get_character_icon, clear_cache_on_success, order_by_criteria_replays, \
-    parse_bool
+    parse_bool, ReplayMapper
 from app.utils.helpers import collapse_replays_into_sets
 from app import replay_controller as controller
 from app.schema import ReplayQuery
@@ -95,13 +95,24 @@ async def get_replays_into_sets():
     if cached_data:
         replays = cached_data
     else:
-        replays_list = [await replay.to_dict() async for replay in controller.get_replays(params, page=page,
-                                                                                        per_page=per_page)]
-        if not replays_list:
-            return jsonify(error=f"Replay(s) with query parameters `{dict_to_url_query(params)}` not found",
-                           replays=replays_list, current_page=page, max_page=1), 404
+        columns = [ Replay.filename,
+                    Replay.datetime_,
+                    Replay.p1_toon,
+                    Replay.p1,
+                    Replay.p2,
+                    Replay.p2_toon,
+                    Replay.winner,
+                    Replay.recorder_steamid64,
+                    Replay.p1_steamid64]
 
-        replay_cache.set(params, replays_list)
+        rows = [row async for row in controller.stream_replay_projection(params, page=page,
+                                                                         per_page=per_page,
+                                                                         columns=columns)]
+        if not rows:
+            return jsonify(error=f"Replay(s) with query parameters `{dict_to_url_query(params)}` not found",
+                           replays=rows, current_page=page, max_page=1), 404
+
+        replay_cache.set(params, rows)
         replays = replay_cache.get(params)
 
     max_page = await controller.get_total_pages(params, per_page=per_page)
@@ -175,8 +186,9 @@ async def get_replays_api():
         return check
 
     validate_replay_query(query_params, ReplayQuery)
-    replays = [await replay.to_dict(include_replay_data=bool(include))
-               async for replay in controller.get_replays(query_params, per_page=per_page, page=page)]
+    replays = [await ReplayMapper.from_row(row, include)
+               async for row in controller.stream_replay_projection(query_params, columns=ALL_COLUMNS,
+                                                                    per_page=per_page, page=page, assign_wins=False)]
 
     if not replays:
         return jsonify(error=f"Replay(s) with query parameters `{dict_to_url_query(query_params)}` not found",
@@ -193,8 +205,8 @@ async def get_replay_api():
     if "filename" not in query_params:
         return jsonify({"error": f"filename, is a required parameter"}), 401
 
-    async for replay in controller.get_replay(query_params):
-        response = jsonify(await replay.to_dict(include_replay_data=True))
+    async for row in controller.stream_replay_projection(query_params, columns=ALL_COLUMNS, assign_wins=False):
+        response = jsonify(await ReplayMapper.from_row(row, include_binary=True))
         code = 200
         return clear_cache_on_success(response, code)
 
@@ -231,7 +243,7 @@ async def create_replay_api():
 @bp.route("/api/replay", methods=["PUT"])
 @rate_limit(1, timedelta(seconds=1))
 @require_api_key
-async def update_replay_api():
+async def update_replay_api(): # will change later since needs an ORM object instead of projection
     query_params = request.args.to_dict()
 
     if "filename" not in query_params:
