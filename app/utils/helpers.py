@@ -1,3 +1,4 @@
+import base64
 import os
 import glob
 import struct
@@ -14,14 +15,31 @@ from typing import Union, Any
 import quart
 
 from quart import request, abort, current_app, Quart
+from sqlalchemy import RowMapping
 
 from app.models.replay import Replay
+from app.services.bbcfim_service import BBCFIM
 from app.utils.cache import cache
 from app.utils.constants import CHARACTERS
+from app.utils.request import RequestFailed
 
 app = Quart("app")
 # Normalize time zones to a common one (UTC in this case)
 UTC_TIMEZONE = pytz.utc
+
+class ReplayMapper:
+    @staticmethod
+    async def from_row(row: RowMapping, include_binary=False):
+        row = dict(row)
+
+        if include_binary:
+            try:
+                data, _, _ = await BBCFIM().download_file(row["filename"])
+                row["replay"] = base64.b64encode(data.read()).decode("utf-8")
+            except RequestFailed as e:
+                return row
+
+        return row
 
 
 def run_search(search: typing.Union[int, str], value: typing.Union[int, str]) -> bool:
@@ -233,7 +251,6 @@ def total_up_wins(row: typing.List[Replay]) -> tuple[int, int]:
     p2wins = 0
 
     for replay in row:
-        assign_wins(replay)
         p1wins += replay["p1wins"]
         p2wins += replay["p2wins"]
 
