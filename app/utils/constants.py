@@ -1,3 +1,5 @@
+from app.models.replay import Replay
+
 CHARACTERS = {
     0: "Ragna",
     1: "Jin",
@@ -36,3 +38,5 @@ CHARACTERS = {
     34: "Mai",
     35: "Jubei"
 }
+
+ALL_COLUMNS = Replay.__table__.columns
