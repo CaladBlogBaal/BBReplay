@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 
 import sqlalchemy
-from sqlalchemy import func, or_, case, cast, Select, RowMapping, desc
+from sqlalchemy import func, or_, case, cast, Select, RowMapping, desc, union_all
 from sqlalchemy.future import select
 from sqlalchemy.exc import NoResultFound
 
@@ -129,17 +129,26 @@ class ReplayService:
 
     async def get_total_replays_per_character(self):
         async with self.acquire() as session:
-            query = select(
-                func.count(Replay.p1_toon == Replay.p2_toon).label("total"),
-                Replay.p1_toon.label("character_id")
-            ).group_by(
-                Replay.p1_toon
-            ).order_by(func.count().desc())
 
-            results = (await session.execute(query)).fetchall()
+            p1_query = select(Replay.p1_toon.label("character_id"))
 
-            logger.info(f"Returned total replays per character.")
-            return results
+            p2_query = select(Replay.p2_toon.label("character_id"))
+
+            combined = union_all(p1_query, p2_query).subquery()
+
+            query = (
+                select(
+                    combined.c.character_id,
+                    func.count().label("total")
+                )
+                .group_by(combined.c.character_id)
+                .order_by(func.count().desc())
+            )
+
+            results = (await session.execute(query)).mappings().all()
+
+            logger.info("Returned total replays per character.")
+            return [dict(row) for row in results]
 
     async def get_matchup_statistics(self, character_id: int = None):
         async with self.acquire() as session:

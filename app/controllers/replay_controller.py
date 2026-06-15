@@ -82,11 +82,11 @@ class ReplayController:
 
     async def get_total_replays_per_character(self):
         rows = await self.service.get_total_replays_per_character()
+
         total_per_character = [
             {
-                "character_id": row.character_id,
-                "total": row.total,
-                "character_name": CHARACTERS[row.character_id]
+                **row,
+                "character_name": CHARACTERS[row["character_id"]],
             }
             for row in rows
         ]
