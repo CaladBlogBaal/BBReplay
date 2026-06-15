@@ -1,13 +1,15 @@
 document.addEventListener('DOMContentLoaded', async function() {
     try {
-        await setTotalReplays();
-        await setTotalPlayers();
-        await setPeakHours();
-        await getCharacterData();
         await initializeIcons();
-        await matchupRarity();
-        await loadMatchups(); // No need to await if it doesn’t return a promise
-        await getReplayTimestamps();
+        await Promise.all([
+            setTotalReplays(),
+            setTotalPlayers(),
+            setPeakHours(),
+            getCharacterData(),
+            matchupRarity(),
+            loadMatchups(),
+            getReplayTimestamps()
+        ]);
     } catch (error) {
         console.error("An error occurred during initialization:", error);
     }
@@ -110,16 +112,18 @@ async function matchupRarity() {
 }
 
 async function getReplayTimestamps() {
-    const response = await fetch('api/replay-timestamps');
+    const response = await fetch('api/count-replay-timestamps');
     if (!response.ok || !response.body) {
         console.error('Error fetching streamed timestamps');
         return;
     }
 
+    const rows = await response.json();
     const hourCounts = Array(24).fill(0);
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let partialLine = '';
+
+    for (const row of rows) {
+        hourCounts[row.hour] = row.total;
+    }
 
     const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
     const data = {
@@ -171,48 +175,7 @@ async function getReplayTimestamps() {
 
     const ctx = document.getElementById('peakHoursChart').getContext('2d');
     const chart = new Chart(ctx, config);
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = (partialLine + chunk).split('\n');
-        partialLine = lines.pop(); // Save incomplete line
-
-        let updated = false;
-
-        for (const line of lines) {
-            if (!line.trim()) continue;
-
-            try {
-                const timestampStr = JSON.parse(line); // ✅ Parse one line at a time
-                const date = new Date(timestampStr);
-                const hour = date.getUTCHours();
-                hourCounts[hour]++;
-                updated = true;
-            } catch (e) {
-                console.error('Error parsing line:', line, e);
-            }
-        }
-
-        if (updated) {
-            chart.update();
-        }
-    }
-
-    // Process the final partial line (if any)
-    if (partialLine.trim()) {
-        try {
-            const timestampStr = JSON.parse(partialLine);
-            const date = new Date(timestampStr);
-            const hour = date.getUTCHours();
-            hourCounts[hour]++;
-            chart.update();
-        } catch (e) {
-            console.error('Error parsing final line:', partialLine, e);
-        }
-    }
+    
 }
 
 async function getCharacterData() {

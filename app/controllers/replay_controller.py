@@ -111,8 +111,8 @@ class ReplayController:
     async def get_total_unique_players(self):
         return await self.service.get_total_unique_players()
 
-    async def get_all_replay_timestamps(self):
-        return self.service.get_all_replay_timestamps()
+    async def count_replay_timestamps(self):
+        return await self.service.count_replay_timestamps()
 
     async def get_all_filenames(self):
         return self.service.get_all_filenames()

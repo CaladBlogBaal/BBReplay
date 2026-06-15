@@ -358,19 +358,9 @@ async def character_matchup():
     return jsonify(data)
 
 
-@bp.route("/api/replay-timestamps", methods=["GET"])
+@bp.route("/api/count-replay-timestamps", methods=["GET"])
 async def get_all_timestamps():
-    # Check if the stream is closed later
-    async def stream():
-
-        async for date in await controller.get_all_replay_timestamps():
-            timestamp = date.strftime("%a, %d %b %Y %H:%M:%S GMT")
-            yield json.dumps(timestamp) + "\n"
-
-
-
-    response = await make_response(stream())
-    response.headers["Content-Type"] = "application/x-ndjson"
-    return response
+    data = [dict(row) for row in await controller.count_replay_timestamps()]
+    return jsonify(data)
 
 

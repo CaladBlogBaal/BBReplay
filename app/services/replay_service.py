@@ -279,15 +279,18 @@ class ReplayService:
 
             return results
 
-    async def get_all_replay_timestamps(self):
-        async for row in self._stream_query_results(
-                acquire_session=self.acquire,
-                query_factory=lambda: select(Replay.datetime_),
-                yield_per=10000
-        ):
-            yield row.datetime_
+    async def count_replay_timestamps(self):
+        async with self.acquire() as session:
+            result = await session.execute(
+                select(
+                    func.hour(Replay.datetime_).label("hour"),
+                    func.count().label("total")
+                )
+                .group_by(func.hour(Replay.datetime_))
+                .order_by(func.hour(Replay.datetime_))
+            )
 
-        logger.info(f"Returned all timestamps.")
+            return result.mappings().all()
 
     async def get_all_filenames(self):
         async for row in self._stream_query_results(
