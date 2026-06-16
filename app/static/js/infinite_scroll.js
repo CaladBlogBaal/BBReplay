@@ -1,7 +1,7 @@
 // Encapsulating state within an object
 const replayLoader = {
     page: new URLSearchParams(window.location.search).get('page') || 1,
-    maxPage: Infinity,
+    hasNext: false,
     loading: false,
     replayString: new URLSearchParams(window.location.search),
     currentController: null,
@@ -14,18 +14,18 @@ const replayLoader = {
 
         if (this.loading && !cancelPrevious) return;
 
-        this.currentController = new AbortController();
-
-        if (this.page > this.maxPage || params.get('page') > this.maxPage) {
-            this.page = 1;
+        // For scroll pagination, stop if the API already said no next page.
+        if (!cancelPrevious && !this.hasNext) {
             return;
         }
+
+        this.currentController = new AbortController();
 
         this.loading = true;
 
         if (params.toString() !== this.replayString.toString()) {
             this.page = 1;
-            this.maxPage = Infinity;
+            this.hasNext = true;
             params.set('page', '1');
             this.replayString = new URLSearchParams(params);
         }
@@ -41,7 +41,7 @@ const replayLoader = {
             if (!response.ok) {
                 if (response.status === 404) {
                     // block the pagination
-                    this.maxPage = 0;
+                    this.hasNext = 0;
                     return;
                 }
                 console.error('Error: Response not OK', response.statusText);
@@ -53,19 +53,14 @@ const replayLoader = {
             if (this.currentController.signal.aborted) return;
 
             if (data.replays.length === 0) {
-                this.maxPage = this.page - 1;
+                this.hasNext = false;
             } else {
                 data.replays.forEach(replay => {
                     $('#replaysContainer').append(this.renderReplay(replay));
                 });
             }
 
-            this.maxPage = data.max_page;
-
-            // do not block pagination if only one page is available
-            if (this.maxPage === 1) {
-                this.maxPage = Infinity;
-            }
+            this.hasNext = data.has_next;
             // check if it's just not page for a parameter
             // if (Array.from(this.replayString.keys()).length !== 1)  {
             //    window.history.pushState(data, '', '?' + this.replayString.toString());

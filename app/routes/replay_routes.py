@@ -26,22 +26,6 @@ bp = Blueprint("replays", __name__, url_prefix="/")
 limit_blueprint(bp, 1, timedelta(seconds=1))
 
 
-def page_out_of_bounds(page: int, max_page: int) -> tuple[Response, int]:
-    if page > max_page > 1:
-        return jsonify({
-            "error": "Page out of bounds",
-            "message": f"The requested page {page} exceeds the maximum page number {max_page}.",
-            "max_page": max_page
-        }), 404
-
-    if page < 0:
-        return jsonify({
-            "error": "Page out of bounds",
-            "message": f"The requested page {page} is less than 0.",
-            "max_page": max_page
-        }), 404
-
-
 def validate_replay_query(params: dict, model: typing.Type[BaseModel]) -> None:
     valid_keys = model.__fields__.keys()
     param_copy = params.copy()
@@ -94,7 +78,9 @@ async def get_replays_into_sets():
     validate_replay_query(params, ReplayQuery)
 
     if cached_data:
-        replays = cached_data
+        replays = cached_data["rows"]
+        has_next = cached_data["has_next"]
+
     else:
         columns = [ Replay.filename,
                     Replay.datetime_,
@@ -104,24 +90,22 @@ async def get_replays_into_sets():
                     Replay.p2_toon,
                     Replay.winner,
                     Replay.recorder_steamid64,
-                    Replay.p1_steamid64]
+                    Replay.p1_steamid64,
+                    Replay.p2_steamid64,
+                    ]
 
         rows = [row async for row in controller.stream_replay_projection(params, page=page,
-                                                                         per_page=per_page,
+                                                                         per_page=per_page + 1,
                                                                          columns=columns)]
         if not rows:
             return jsonify(error=f"Replay(s) with query parameters `{dict_to_url_query(params)}` not found",
                            replays=rows, current_page=page, max_page=1), 404
 
-        replay_cache.set(cache_params, rows)
-        replays = replay_cache.get(cache_params)
+        has_next = len(rows) > per_page
+        rows = rows[:per_page]
 
-    max_page = await controller.get_total_pages(params, per_page=per_page)
-
-    check = page_out_of_bounds(page, max_page)
-
-    if check:
-        return check
+        replay_cache.set(cache_params, {"rows": rows, "has_next": has_next, })
+        replays = replay_cache.get(cache_params)["rows"]
 
     replays = collapse_replays_into_sets(replays)
 
@@ -132,7 +116,7 @@ async def get_replays_into_sets():
         if search:
             replays = order_by_criteria_replays(replays, pos=pos, outcome=outcome, search=search)
 
-    return jsonify(replays=replays, current_page=page, max_page=max_page)
+    return jsonify(replays=replays, current_page=page, has_next=has_next)
 
 
 @bp.route("/api/character-icons", methods=["GET"])
@@ -180,11 +164,6 @@ async def get_replays_api():
     # Enforce limits
     per_page = max(1, min(per_page, limit))
     max_page = await controller.get_total_pages(query_params, per_page=per_page)
-
-    check = page_out_of_bounds(page, max_page)
-
-    if check:
-        return check
 
     validate_replay_query(query_params, ReplayQuery)
     replays = [await ReplayMapper.from_row(row, include)

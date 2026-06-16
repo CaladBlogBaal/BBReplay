@@ -98,7 +98,7 @@ window.addEventListener("popstate", (event) => {
     if (event.state) {
         const replayContainer = document.getElementById('replaysContainer')
         replayContainer.replaceChildren();
-        replayLoader.maxPage = event.state.maxPage;
+        replayLoader.hasNext = event.state.hasNext;
         replayLoader.replayString = new URLSearchParams(window.location.search);
         // Convert page to a number before adding 1
         replayLoader.page = Number(replayLoader.replayString.get('page')) + 1 || 1;
