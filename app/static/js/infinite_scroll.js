@@ -4,10 +4,17 @@ const replayLoader = {
     maxPage: Infinity,
     loading: false,
     replayString: new URLSearchParams(window.location.search),
+    currentController: null,
 
-    async loadReplays(params = new URLSearchParams(this.replayString)) {
+    async loadReplays(params = new URLSearchParams(this.replayString), cancelPrevious = false) {
 
-        if (this.loading) return;
+        if (cancelPrevious && this.currentController) {
+            this.currentController.abort();
+        }
+
+        if (this.loading && !cancelPrevious) return;
+
+        this.currentController = new AbortController();
 
         if (this.page > this.maxPage || params.get('page') > this.maxPage) {
             this.page = 1;
@@ -27,9 +34,12 @@ const replayLoader = {
 
         try {
 
-            const response = await fetch(`api/replay-sets?${params.toString()}`);
+            const response = await fetch(`api/replay-sets?${params.toString()}`,{
+            signal: this.currentController.signal
+            });
+
             if (!response.ok) {
-                if (response.status == 404) {
+                if (response.status === 404) {
                     // block the pagination
                     this.maxPage = 0;
                     return;
@@ -39,6 +49,8 @@ const replayLoader = {
             }
 
             const data = await response.json();
+
+            if (this.currentController.signal.aborted) return;
 
             if (data.replays.length === 0) {
                 this.maxPage = this.page - 1;

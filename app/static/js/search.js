@@ -25,38 +25,28 @@ const replayManager = {
     },
 
     handleFieldInputs: function(fieldInput, parameter) {
-        const currentValue = fieldInput;
-        if (currentValue !== this.previousValues[parameter]) {
-            if (currentValue) {
-                this.replayString.set(parameter, currentValue);
-                this.loadNewReplays();
-            } else {
-                this.replayString.delete(parameter);
-            }
-            this.previousValues[parameter] = currentValue;
-        }
-    },
+        const currentValue = fieldInput.value.trim().toLowerCase();
 
-    setupFieldEvent: function(event, fieldInput, parameter) {
-        if (event.key === 'Enter' || event.keyCode === 13) {
-            this.handleFieldInputs(fieldInput.value, parameter);
-        } else if (event.key === 'Back' || event.keyCode === 8) {
-            let currentValue = fieldInput.value;
-            if (!currentValue) {
-                if (fieldInput.value !== this.previousValues[parameter]) {
-                    // check if it's player inputs
-                    if (parameter.startsWith('p')) {
-                        this.replayString.delete(parameter);
-                        this.loadNewReplays();
-                    }
-                    this.previousValues[parameter] = currentValue;
-                }
+        if (currentValue === "") {
+            this.replayString.delete(parameter);
+        } else {
+            this.replayString.set(parameter, currentValue);
         }
-        }
+
+        this.previousValues[parameter] = currentValue;
+        this.loadNewReplays();
     },
 
     setupSearchFields: function() {
         if (window.location.href.includes('upload')) return;
+
+        for (const key of ['p1', 'p2']) {
+            const value = this.replayString.get(key);
+            if (value) {
+                this.replayString.set(key, value.toLowerCase());
+            }
+        }
+
         const playerInput = document.getElementById('playerInput');
         const playerInput2 = document.getElementById('playerInput2');
         const dateInput = $('#dateField');
@@ -97,27 +87,36 @@ const replayManager = {
         // MMMM D, YYYY
         dateInput.attr('placeholder', 'November 5, 2017' + ' - ' + currentDate);
 
-        playerInput.addEventListener('keyup', function(event) {
-            self.setupFieldEvent(event, playerInput, 'p1');
+        playerInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                this.handleFieldInputs(playerInput, "p1");
+            }
         });
 
-        playerInput2.addEventListener('keyup', function(event) {
-            self.setupFieldEvent(event, playerInput2, 'p2');
+        playerInput.addEventListener("input", () => {
+            if (playerInput.value.trim() === "") {
+                this.handleFieldInputs(playerInput, "p1");
+            }
         });
 
-        playerInput.addEventListener('blur', function() {
-            self.handleFieldInputs(playerInput.value, 'p1');
+        playerInput2.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                this.handleFieldInputs(playerInput2, "p2");
+            }
         });
 
-        playerInput2.addEventListener('blur', function() {
-            self.handleFieldInputs(playerInput2.value, 'p2');
+        playerInput2.addEventListener("input", () => {
+            if (playerInput2.value.trim() === "") {
+                this.handleFieldInputs(playerInput2, "p2");
+            }
         });
+
 
     },
 
     loadNewReplays: function() {
         this.replayContainer.replaceChildren();
-        replayLoader.loadReplays(this.replayString).then(
+        replayLoader.loadReplays(this.replayString, true).then(
             r => window.history.pushState(r, '', '?' + this.replayString.toString()))
     },
 
