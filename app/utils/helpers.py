@@ -9,7 +9,7 @@ import pytz
 
 from datetime import datetime, timedelta
 
-from functools import wraps
+from functools import wraps, lru_cache
 from typing import Union, Any
 
 import quart
@@ -294,7 +294,7 @@ def get_files(pattern, path):
             if fnmatch.fnmatch(f, pattern):
                 yield os.path.join(dirpath, f), f
 
-
+@lru_cache(maxsize=None)
 def get_character_icon(search: str) -> Union[bytes, str]:
     img_path = os.path.join(app.root_path, "static", "img")
     icons = get_files(f"*{search}*.png", img_path)
