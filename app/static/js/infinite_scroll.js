@@ -1,7 +1,7 @@
 // Encapsulating state within an object
 const replayLoader = {
     page: new URLSearchParams(window.location.search).get('page') || 1,
-    hasNext: false,
+    hasNext: true,
     loading: false,
     replayString: new URLSearchParams(window.location.search),
     currentController: null,
