@@ -18,7 +18,7 @@ class QueryBuilder:
 
         if isinstance(value, str):
             value = value.strip().lower()
-            conditions.append(column.like(f"{value}%"))
+            conditions.append(column.like(f"%{value}%"))
 
         elif isinstance(value, datetime):
             # convert datetime → day range
