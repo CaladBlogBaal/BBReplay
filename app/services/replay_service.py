@@ -317,6 +317,9 @@ class ReplayService:
                                        assign_wins=True
                                        ) -> typing.AsyncGenerator[RowMapping, None]:
         async with self.acquire() as session:
+
+            is_player_search = bool( query_params.get("p1") or query_params.get("p2"))
+
             if assign_wins:
                 p1wins = case(
                     (
@@ -331,6 +334,13 @@ class ReplayService:
                 columns.append(p2wins)
 
             query = self.query_builder.build_query(Replay, query_params, projection=True, columns=columns)
+
+            if is_player_search:
+                query = query.with_hint(
+                    Replay.__table__,
+                    "IGNORE INDEX (idx_datetime)",
+                    dialect_name="mysql",
+                )
 
             query = query.order_by(desc(Replay.datetime_))
 
