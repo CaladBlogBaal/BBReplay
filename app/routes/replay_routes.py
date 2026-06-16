@@ -85,8 +85,9 @@ async def get_replays_into_sets():
 
     params["page"] = str(page)
     params["strict_side"]  = get_strict_side(params)
+    cache_params = params.copy()
     replay_cache = cache
-    cached_data = replay_cache.get(params)
+    cached_data = replay_cache.get(cache_params)
     params.pop("page", None)
     pos = request.cookies.get("pos", "")
     outcome = request.cookies.get("outcome", "")
@@ -112,8 +113,8 @@ async def get_replays_into_sets():
             return jsonify(error=f"Replay(s) with query parameters `{dict_to_url_query(params)}` not found",
                            replays=rows, current_page=page, max_page=1), 404
 
-        replay_cache.set(params, rows)
-        replays = replay_cache.get(params)
+        replay_cache.set(cache_params, rows)
+        replays = replay_cache.get(cache_params)
 
     max_page = await controller.get_total_pages(params, per_page=per_page)
 
