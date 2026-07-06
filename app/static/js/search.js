@@ -1,169 +1,157 @@
-import replayLoader from './infinite_scroll.js';
+import replayLoader from './infinite_scroll.js?v=1.0.2';
 
 const replayManager = {
-    // constant
-    replayContainer: document.getElementById('replaysContainer'),
-    // to track the state of input fields
-    previousValues: {
-        p1: null,
-        p2: null,
-    },
-    // Initialize URLSearchParams outside to maintain query inputs
+    previousValues: { p1: null, p2: null },
     replayString: new URLSearchParams(window.location.search),
 
-    handleAnchorClick: function(event, icon, player, dropdownId) {
-        event.preventDefault(); // Prevent the default link behavior
-        const characterId = icon.id;
-        this.replayString.set(`${player}_character_id`, characterId);
+    handleAnchorClick(event, icon, player, dropdownId) {
+        event.preventDefault();
+        this.replayString.set(`${player}_character_id`, icon.id);
         this.replayString.set('page', '1');
-
         this.loadNewReplays();
-
         const dropdown = document.getElementById(dropdownId);
         dropdown.style.background = `url(${icon.path}) no-repeat center center`;
         dropdown.style.backgroundSize = 'cover';
     },
 
-    handleFieldInputs: function(fieldInput, parameter) {
+    handleFieldInputs(fieldInput, parameter) {
         const currentValue = fieldInput.value.trim().toLowerCase();
 
-        if (currentValue === "") {
+        if (this.previousValues[parameter] === currentValue) {
+            return;
+        }
+
+        if (currentValue === '') {
             this.replayString.delete(parameter);
         } else {
             this.replayString.set(parameter, currentValue);
         }
-
+        this.replayString.set('page', '1');
         this.previousValues[parameter] = currentValue;
         this.loadNewReplays();
     },
 
-    setupSearchFields: function() {
+    setupSearchFields() {
         if (window.location.href.includes('upload')) return;
-
         for (const key of ['p1', 'p2']) {
             const value = this.replayString.get(key);
+
             if (value) {
-                this.replayString.set(key, value.toLowerCase());
+                const normalized = value.toLowerCase();
+                this.replayString.set(key, normalized);
+                this.replayString.set(key, normalized);
+                this.previousValues[key] = normalized;
             }
         }
 
         const playerInput = document.getElementById('playerInput');
         const playerInput2 = document.getElementById('playerInput2');
         const dateInput = $('#dateField');
-        const self = this; // To preserve the context of 'this'
+        // jquery uses "this" which could refer to the DOM
+        const self = this;
 
         dateInput.daterangepicker({
             autoUpdateInput: true,
-            locale: {
-                cancelLabel: 'Clear',
-                format: 'MMMM D, YYYY'
-            }
+            locale: { cancelLabel: 'Clear', format: 'MMMM D, YYYY' },
         });
 
-        dateInput.on('apply.daterangepicker', function(ev, picker) {
-
+        dateInput.on('apply.daterangepicker', function(_event, picker) {
             const startDate = picker.startDate.format('MMMM D, YYYY');
             const endDate = picker.endDate.format('MMMM D, YYYY');
-            let dateRange = JSON.stringify([picker.startDate.format('DD/MM/YYYY'),
-                                                  picker.endDate.format('DD/MM/YYYY')]);
-            if (self.previousValues['datetime_'] !== dateRange) {
+            const dateRange = JSON.stringify([
+                picker.startDate.format('DD/MM/YYYY'),
+                picker.endDate.format('DD/MM/YYYY'),
+            ]);
+            if (self.previousValues.datetime_ !== dateRange) {
                 self.replayString.set('datetime_', dateRange);
-                self.previousValues.datetime_ = dateRange
+                self.replayString.set('page', '1');
+                self.previousValues.datetime_ = dateRange;
                 self.loadNewReplays();
-                $(this).val(startDate + ' - ' + endDate);
+                $(this).val(`${startDate} - ${endDate}`);
             }
         });
 
         dateInput.on('cancel.daterangepicker', function() {
             self.replayString.delete('datetime_');
+            self.replayString.set('page', '1');
             self.previousValues.datetime_ = null;
             self.loadNewReplays();
             $(this).val('');
         });
 
         const date = new Date();
-        let options = { year: 'numeric', month: 'long', day: 'numeric' };
-        let currentDate = date.toLocaleDateString("en-US", options);
-        // MMMM D, YYYY
-        dateInput.attr('placeholder', 'November 5, 2017' + ' - ' + currentDate);
-
-        playerInput.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-                this.handleFieldInputs(playerInput, "p1");
-            }
+        const currentDate = date.toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric',
         });
+        dateInput.attr('placeholder', `November 5, 2017 - ${currentDate}`);
 
-        playerInput.addEventListener("input", () => {
-            if (playerInput.value.trim() === "") {
-                this.handleFieldInputs(playerInput, "p1");
-            }
+        playerInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter') this.handleFieldInputs(playerInput, 'p1');
         });
-
-        playerInput2.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-                this.handleFieldInputs(playerInput2, "p2");
-            }
+        playerInput.addEventListener('input', () => {
+            if (playerInput.value.trim() === '') this.handleFieldInputs(playerInput, 'p1');
         });
-
-        playerInput2.addEventListener("input", () => {
-            if (playerInput2.value.trim() === "") {
-                this.handleFieldInputs(playerInput2, "p2");
-            }
+        playerInput2.addEventListener('keydown', event => {
+            if (event.key === 'Enter') this.handleFieldInputs(playerInput2, 'p2');
         });
-
-
+        playerInput2.addEventListener('input', () => {
+            if (playerInput2.value.trim() === '') this.handleFieldInputs(playerInput2, 'p2');
+        });
     },
 
-    loadNewReplays: function() {
-        this.replayContainer.replaceChildren();
-        replayLoader.loadReplays(this.replayString, true).then(
-            r => window.history.pushState(r, '', '?' + this.replayString.toString()))
+    loadNewReplays() {
+        const query = new URLSearchParams(this.replayString.toString());
+        query.set('page', '1');
+        this.replayString = new URLSearchParams(query.toString());
+        // history only records searches that actually became the active displayed result
+        return replayLoader.startSearch(query).then(result => {
+            if (!result?.accepted) return result;
+            window.history.pushState(
+                result.historyState,
+                '',
+                `?${query.toString()}`,
+            );
+            return result;
+        });
     },
 
-    fetchCharacterIcons: function() {
+    fetchCharacterIcons() {
         fetch('/api/character-icons')
             .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
+                if (!response.ok) throw new Error('Network response was not ok');
                 return response.json();
             })
-            .then(data => {
-                this.displaysSearch(data);
-            })
-            .catch(error => {
-                console.error('Error fetching character icons:', error);
-            });
+            .then(data => this.displaysSearch(data))
+            .catch(error => console.error('Error fetching character icons:', error));
     },
 
-    displaysSearch: function(characterIcons) {
+    displaysSearch(characterIcons) {
         if (window.location.href.includes('upload')) return;
         const dropdownMenu = document.querySelector('#characterContainer');
         const dropdownMenu2 = document.querySelector('#characterContainer2');
-        const self = this; // To preserve the context of 'this'
+        // defensive guard
+        dropdownMenu.replaceChildren();
+        dropdownMenu2.replaceChildren();
+        // jquery uses "this" which could refer to the DOM
+        const self = this;
 
-        // Create a default reset list item
         const createDefaultListItem = (menu, type) => {
             const liElement = document.createElement('li');
             liElement.classList.add('dropdown-item');
             const anchorElement = document.createElement('a');
-            anchorElement.text = 'Any'; // Text for the default option
-            anchorElement.setAttribute('data-id', ''); // Blank data-id to indicate reset
-
+            anchorElement.text = 'Any';
+            anchorElement.setAttribute('data-id', '');
             anchorElement.addEventListener('click', function(event) {
-                event.preventDefault(); // Prevent the default link behavior
+                event.preventDefault();
                 self.replayString.delete(`${type}_character_id`);
                 self.replayString.set('page', '1');
-                self.loadNewReplays(); //  reload to list
-                const dropdown = document.getElementById(menu);
-                dropdown.style.background = ''
+                self.loadNewReplays();
+                document.getElementById(menu).style.background = '';
             });
-
-        liElement.appendChild(anchorElement);
-        return liElement;
+            liElement.appendChild(anchorElement);
+            return liElement;
         };
 
-        // Append default list item to both dropdown menus
         dropdownMenu.appendChild(createDefaultListItem('characterDropdown', 'p1'));
         dropdownMenu2.appendChild(createDefaultListItem('characterDropdown2', 'p2'));
 
@@ -175,19 +163,15 @@ const replayManager = {
             const anchorElement = document.createElement('a');
             anchorElement.text = icon.name;
             anchorElement.setAttribute('data-id', icon.id);
-
             const anchorElement2 = anchorElement.cloneNode(true);
             const imgElement2 = imgElement.cloneNode(true);
             const liElement2 = liElement.cloneNode(true);
-
-            anchorElement.addEventListener('click', function(event) {
+            anchorElement.addEventListener('click', event => {
                 self.handleAnchorClick(event, icon, 'p1', 'characterDropdown');
             });
-
-            anchorElement2.addEventListener('click', function(event) {
+            anchorElement2.addEventListener('click', event => {
                 self.handleAnchorClick(event, icon, 'p2', 'characterDropdown2');
             });
-
             dropdownMenu.appendChild(liElement);
             dropdownMenu2.appendChild(liElement2);
             liElement.appendChild(anchorElement);
@@ -197,10 +181,10 @@ const replayManager = {
         });
     },
 
-    init: async function() {
+    init() {
         this.fetchCharacterIcons();
         this.setupSearchFields();
-    }
+    },
 };
 
 export default replayManager;

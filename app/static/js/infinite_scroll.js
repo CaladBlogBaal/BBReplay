@@ -1,79 +1,185 @@
-// Encapsulating state within an object
+// Every request captures an immutable query snapshot and is accepted only while it is still the active generation
 const replayLoader = {
-    page: new URLSearchParams(window.location.search).get('page') || 1,
+    page: 1,
     hasNext: true,
     loading: false,
-    replayString: new URLSearchParams(window.location.search),
-    currentController: null,
+    replayString: null,
+    activeRequest: null,
+    generation: 0,
+    lastError: null,
 
-    async loadReplays(params = new URLSearchParams(this.replayString), cancelPrevious = false) {
+    _normalizeSearch(params) {
+        // sorting so p1?=bob?p2=john and p2=john?p1=bob are treated as the same query
+        const snapshot = this.cloneParams(params);
+        snapshot.set('page', '1');
+        snapshot.sort();
+        return snapshot;
+    },
 
-        if (cancelPrevious && this.currentController) {
-            this.currentController.abort();
+    _queryKey(params) {
+        const snapshot = this.cloneParams(params);
+        snapshot.sort();
+        return snapshot.toString();
+    },
+
+    _setLoading(value) {
+        this.loading = value;
+        if (value) {
+            $('#loading').show();
+        } else {
+            $('#loading').hide();
+        }
+    },
+
+    _isActive(request) {
+        return this.activeRequest === request &&
+            request.generation === this.generation &&
+            request.queryKey === this._queryKey(this.replayString);
+    },
+
+    _historyState(data) {
+        return {
+            query: this.replayString.toString(),
+            nextPage: this.page,
+            hasNext: this.hasNext,
+            replays: data.replays,
+        };
+    },
+    // creating a copy of query params to ensure it's not mutated by other requests
+    cloneParams(params) {
+        return new URLSearchParams(params instanceof URLSearchParams ? params.toString() : params || '');
+    },
+
+    async startSearch(params = new URLSearchParams(window.location.search), { clear = true } = {}) {
+        const querySnapshot = this._normalizeSearch(params);
+        const previousRequest = this.activeRequest;
+
+        this.generation += 1;
+        const generation = this.generation;
+
+        if (previousRequest) {
+            previousRequest.controller.abort();
         }
 
-        if (this.loading && !cancelPrevious) return;
+        this.activeRequest = null;
+        this.lastError = null;
+        this.replayString = this.cloneParams(querySnapshot);
+        this.page = 1
+        this.hasNext = true
+        this._setLoading(false)
 
-        // For scroll pagination, stop if the API already said no next page.
-        if (!cancelPrevious && !this.hasNext) {
-            return;
+        if (clear) {
+            document.getElementById('replaysContainer')?.replaceChildren();
         }
 
-        this.currentController = new AbortController();
+        return this._requestPage(1, generation, querySnapshot);
+    },
 
-        this.loading = true;
-
-        if (params.toString() !== this.replayString.toString()) {
-            this.page = 1;
-            this.hasNext = true;
-            params.set('page', '1');
-            this.replayString = new URLSearchParams(params);
+    async loadNextPage() {
+        if (this.loading) {
+            return { accepted: false, reason: 'loading' };
+        }
+        if (!this.hasNext) {
+            return { accepted: false, reason: 'exhausted' };
         }
 
-        $('#loading').show();
+        if (!this.replayString) {
+            return this.startSearch(new URLSearchParams(window.location.search));
+        }
+
+        return this._requestPage(this.page, this.generation, this.replayString);
+    },
+
+    async retry() {
+        if (!this.lastError?.retryable) {
+            return { accepted: false, reason: 'not-retryable' };
+        }
+        return this.loadNextPage();
+    },
+
+    async _requestPage(page, generation, baseQuery) {
+        if (generation !== this.generation) {
+            return { accepted: false, reason: 'stale-generation' };
+        }
+
+        const querySnapshot = this.cloneParams(baseQuery);
+        querySnapshot.set('page', String(page));
+        querySnapshot.sort();
+
+        const controller = new AbortController();
+        const request = {
+            generation,
+            queryString: querySnapshot.toString(),
+            queryKey: this._queryKey(baseQuery),
+            page,
+            controller,
+        };
+
+        this.activeRequest = request;
+        this.lastError = null;
+        this._setLoading(true);
 
         try {
-
-            const response = await fetch(`api/replay-sets?${params.toString()}`,{
-            signal: this.currentController.signal
+            const response = await fetch(`/api/replay-sets?${request.queryString}`, {
+                signal: controller.signal,
             });
+
+            if (!this._isActive(request)) {
+                return { accepted: false, reason: 'stale' };
+            }
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    // block the pagination
-                    this.hasNext = 0;
-                    return;
+                    this.hasNext = false;
+                    this.lastError = { status: 404, retryable: false };
+                } else if (response.status === 429) {
+                    this.lastError = { status: 429, retryable: true };
+                } else {
+                    this.lastError = { status: response.status, retryable: true };
                 }
-                console.error('Error: Response not OK', response.statusText);
-                return;
+                return { accepted: false, status: response.status, retryable: this.lastError.retryable };
             }
 
             const data = await response.json();
 
-            if (this.currentController.signal.aborted) return;
-
-            if (data.replays.length === 0) {
-                this.hasNext = false;
-            } else {
-                data.replays.forEach(replay => {
-                    $('#replaysContainer').append(this.renderReplay(replay));
-                });
+            if (!this._isActive(request) || controller.signal.aborted) {
+                return { accepted: false, reason: 'stale' };
             }
 
-            this.hasNext = data.has_next;
-            // check if it's just not page for a parameter
-            // if (Array.from(this.replayString.keys()).length !== 1)  {
-            //    window.history.pushState(data, '', '?' + this.replayString.toString());
-            // }
-            this.page++;
-            this.replayString.set('page', this.page.toString());
-            return data;
+            for (const replay of data.replays) {
+                $('#replaysContainer').append(this.renderReplay(replay));
+            }
+
+            this.hasNext = Boolean(data.has_next);
+            // page state based on the accepted request’s snapshot
+            this.page = request.page + 1
+            this.lastError = null;
+
+            return {
+                accepted: true,
+                data,
+                historyState: this._historyState(data),
+                query: this.replayString.toString(),
+            };
 
         } catch (error) {
+            if (!this._isActive(request)) {
+                return { accepted: false, reason: 'stale' };
+            }
+
+            if (error.name === 'AbortError') {
+                return { accepted: false, reason: 'aborted' };
+            }
+
+            this.lastError = { status: null, retryable: true, error };
             console.error('Error fetching replays', error);
+            return { accepted: false, reason: 'network-error', retryable: true };
         } finally {
-            this.loading = false;
-            $('#loading').hide();
+
+            if (this._isActive(request)) {
+                this._setLoading(false);
+                this.activeRequest = null;
+            }
         }
     },
 
@@ -242,12 +348,15 @@ const replayLoader = {
     },
 };
 
+replayLoader.replayString = replayLoader.cloneParams(replayLoader._normalizeSearch(window.location.search));
+replayLoader.page = 1;
+
 export default replayLoader;
 
 
 $(window).on('scroll', function() {
 
     if ($(window).scrollTop() + $(window).height() >= $(document).height() - 100) {
-        replayLoader.loadReplays();
+        replayLoader.loadNextPage();
     }
 });
