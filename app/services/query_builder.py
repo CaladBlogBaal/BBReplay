@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import typing
 
 import sqlalchemy
@@ -23,13 +23,36 @@ class QueryBuilder:
         elif isinstance(value, datetime):
             # convert datetime → day range
             start_of_day = datetime(value.year, value.month, value.day, 0, 0, 0)
-            end_of_day = datetime(value.year, value.month, value.day, 23, 59, 59)
-
-            conditions.append(column.between(start_of_day, end_of_day))
+            start_of_next_day = start_of_day + timedelta(days=1)
+            condition = and_(
+                column >= start_of_day,
+                column < start_of_next_day,
+            )
+            conditions.append(condition)
 
         elif (isinstance(value, tuple) or isinstance(value, list)) and len(value) == 2:
             start, end = value
-            conditions.append(column.between(start, end))
+
+            start_of_day = start.replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+            end_exclusive = end.replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            ) + timedelta(days=1)
+
+            condition = and_(
+                column >= start_of_day,
+                column < end_exclusive
+            )
+
+            conditions.append(condition)
 
         else:
             conditions.append(column == value)
