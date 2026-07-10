@@ -59,8 +59,8 @@ const replayManager = {
             const startDate = picker.startDate.format('MMMM D, YYYY');
             const endDate = picker.endDate.format('MMMM D, YYYY');
             const dateRange = JSON.stringify([
-                picker.startDate.format('DD/MM/YYYY'),
-                picker.endDate.format('DD/MM/YYYY'),
+                picker.startDate.format('YYYY-MM-DD'),
+                picker.endDate.format('YYYY-MM-DD'),
             ]);
             if (self.previousValues.datetime_ !== dateRange) {
                 self.replayString.set('datetime_', dateRange);

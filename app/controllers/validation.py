@@ -23,6 +23,7 @@ def cast_attributes_to_types(replay_instance: typing.Union[Replay, ReplayQuery, 
         'recorder': str,
         'winner': int,
         'datetime_': parse_date_string,
+        'upload_datetime_': parse_date_string,
         'p1_steamid64': int,
         'p2_steamid64': int,
         'recorder_steamid64': int
@@ -49,8 +50,8 @@ def parse_date_string(date_object: typing.Union[str, datetime, typing.Tuple[Any]
                     datetime, tuple[Union[datetime, tuple[datetime]], ...]]:
     try:
         # Parse object into a datetime object
-        timezone = pytz.timezone("UTC")
-        localized_datetime = timezone.localize(parser.parse(date_object))
+        parsed = datetime.strptime(date_object, "%Y-%m-%d")
+        localized_datetime = pytz.UTC.localize(parsed)
         return localized_datetime
     except (ValueError, TypeError):
         if isinstance(date_object, datetime):
