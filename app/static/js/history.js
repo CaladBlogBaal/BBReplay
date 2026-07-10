@@ -1,5 +1,5 @@
 import replayLoader from './infinite_scroll.js?v=1.0.2';
-import replayManager from './search.js?v=1.0.2';
+import replayManager from './search.js?v=1.0.3';
 
 function formatDates(dates) {
     return dates.map(dateString => {
